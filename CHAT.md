@@ -385,3 +385,11 @@ init底层逻辑依赖的文件夹检测存在问题，目前你的逻辑是按�
 我建议我们应该一劳永逸引入 @parcel/watcher ，让我们用最符合直觉的方式来监听我们的一整个项目目录，同时性能还能提高！代码也能进一步简化，质量和性能也能进一步提高。
 
 要注意，我们使用tsdown在做编译，@parcel/watcher是二进制项目，所以应该被exclude，从而确保安装我们 openspecui 的时候 @parcel/watcher 也被作为依赖被安装。
+
+---
+
+基于parcel/watcher的监听机制中，我刚才做了这样的事情：
+
+pnpm example:clean && pnpm example:setup
+
+然后我发现对于example的文件夹监听就失效了。
