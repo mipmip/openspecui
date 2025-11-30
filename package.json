@@ -20,7 +20,7 @@
     "test": "vitest",
     "example:setup": "tsx scripts/setup-example.ts",
     "example:clean": "tsx scripts/setup-example.ts --clean",
-    "example:dev": "pnpm example:setup && pnpm preview -- ./example"
+    "example:dev": "pnpm example:setup && pnpm preview --dir ./example"
   },
   "keywords": [
     "openspec",

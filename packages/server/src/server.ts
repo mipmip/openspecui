@@ -82,6 +82,7 @@ export function createServer(config: ServerConfig) {
         configManager,
         cliExecutor,
         watcher,
+        projectDir: config.projectDir,
       }),
     })
     return response
@@ -94,6 +95,7 @@ export function createServer(config: ServerConfig) {
     configManager,
     cliExecutor,
     watcher,
+    projectDir: config.projectDir,
   })
 
   return {

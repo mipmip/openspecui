@@ -9,12 +9,19 @@ export interface CliResult {
   exitCode: number | null
 }
 
+/** CLI 流式输出事件 */
+export interface CliStreamEvent {
+  type: 'command' | 'stdout' | 'stderr' | 'exit'
+  data?: string
+  exitCode?: number | null
+}
+
 /**
  * CLI 执行器
  *
  * 负责调用外部 openspec CLI 命令。
  * 命令前缀从 ConfigManager 获取，支持：
- * - npx openspec (默认)
+ * - npx @fission-ai/openspec (默认)
  * - bunx openspec
  * - openspec (本地安装)
  * - 自定义命令 (如 xspec)
@@ -47,19 +54,29 @@ export class CliExecutor {
   }
 
   /**
+   * 构建完整命令字符串
+   * 将命令和参数合并为单个字符串，用于 shell 执行
+   */
+  private async buildCommand(args: string[]): Promise<string> {
+    const command = await this.configManager.getCliCommand()
+    // 将参数用空格连接，形成完整命令
+    // 注意：参数中如果包含空格需要引号包裹（由调用者负责）
+    return [command, ...args].join(' ')
+  }
+
+  /**
    * 执行 CLI 命令
    *
    * @param args CLI 参数，如 ['init'] 或 ['archive', 'change-id']
    * @returns 执行结果
    */
   async execute(args: string[]): Promise<CliResult> {
-    const command = await this.configManager.getCliCommand()
-    const parts = command.split(/\s+/)
-    const cmd = parts[0]
-    const cmdArgs = [...parts.slice(1), ...args]
+    const fullCommand = await this.buildCommand(args)
 
     return new Promise((resolve) => {
-      const child = spawn(cmd, cmdArgs, {
+      // 使用 shell: true 时，将完整命令作为第一个参数传递，不传 args
+      // 这样可以避免 DEP0190 警告
+      const child = spawn(fullCommand, [], {
         cwd: this.projectDir,
         shell: true,
         env: this.getCleanEnv(),
@@ -103,7 +120,8 @@ export class CliExecutor {
    */
   async init(tools: string[] | 'all' | 'none' = 'all'): Promise<CliResult> {
     const toolsArg = Array.isArray(tools) ? tools.join(',') : tools
-    return this.execute(['init', `--tools=${toolsArg}`])
+    // CLI 格式是 `--tools <value>`，不是 `--tools=<value>`
+    return this.execute(['init', '--tools', toolsArg])
   }
 
   /**
@@ -154,5 +172,78 @@ export class CliExecutor {
         error: err instanceof Error ? err.message : 'Unknown error',
       }
     }
+  }
+
+  /**
+   * 流式执行 CLI 命令
+   *
+   * @param args CLI 参数
+   * @param onEvent 事件回调
+   * @returns 取消函数
+   */
+  async executeStream(
+    args: string[],
+    onEvent: (event: CliStreamEvent) => void
+  ): Promise<() => void> {
+    const fullCommand = await this.buildCommand(args)
+
+    // 首先发送正在执行的命令
+    onEvent({ type: 'command', data: fullCommand })
+
+    // 使用 shell: true 时，将完整命令作为第一个参数传递，不传 args
+    // 这样可以避免 DEP0190 警告
+    const child = spawn(fullCommand, [], {
+      cwd: this.projectDir,
+      shell: true,
+      env: this.getCleanEnv(),
+    })
+
+    child.stdout?.on('data', (data) => {
+      onEvent({ type: 'stdout', data: data.toString() })
+    })
+
+    child.stderr?.on('data', (data) => {
+      onEvent({ type: 'stderr', data: data.toString() })
+    })
+
+    child.on('close', (exitCode) => {
+      onEvent({ type: 'exit', exitCode })
+    })
+
+    child.on('error', (err) => {
+      onEvent({ type: 'stderr', data: err.message })
+      onEvent({ type: 'exit', exitCode: null })
+    })
+
+    // 返回取消函数
+    return () => {
+      child.kill()
+    }
+  }
+
+  /**
+   * 流式执行 openspec init
+   */
+  initStream(
+    tools: string[] | 'all' | 'none',
+    onEvent: (event: CliStreamEvent) => void
+  ): Promise<() => void> {
+    const toolsArg = Array.isArray(tools) ? tools.join(',') : tools
+    // CLI 格式是 `--tools <value>`，不是 `--tools=<value>`
+    return this.executeStream(['init', '--tools', toolsArg], onEvent)
+  }
+
+  /**
+   * 流式执行 openspec archive
+   */
+  archiveStream(
+    changeId: string,
+    options: { skipSpecs?: boolean; noValidate?: boolean },
+    onEvent: (event: CliStreamEvent) => void
+  ): Promise<() => void> {
+    const args = ['archive', '-y', changeId]
+    if (options.skipSpecs) args.push('--skip-specs')
+    if (options.noValidate) args.push('--no-validate')
+    return this.executeStream(args, onEvent)
   }
 }

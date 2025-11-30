@@ -282,3 +282,18 @@ export function useConfigSubscription(): SubscriptionState<OpenSpecUIConfig> {
     []
   )
 }
+
+// =====================
+// CLI subscriptions
+// =====================
+
+export function useConfiguredToolsSubscription(): SubscriptionState<string[]> {
+  return useSubscription<string[]>(
+    (callbacks) =>
+      trpcClient.cli.subscribeConfiguredTools.subscribe(undefined, {
+        onData: callbacks.onData,
+        onError: callbacks.onError,
+      }),
+    []
+  )
+}

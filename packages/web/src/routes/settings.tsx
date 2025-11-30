@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { trpc, trpcClient } from '@/lib/trpc'
 import { getApiBaseUrl } from '@/lib/api-config'
-import { useConfigSubscription } from '@/lib/use-subscription'
+import { useConfigSubscription, useConfiguredToolsSubscription } from '@/lib/use-subscription'
 import { Sun, Moon, Monitor, Wifi, WifiOff, FolderPlus, Terminal, CheckCircle, XCircle, Check } from 'lucide-react'
+import { CliTerminalModal } from '@/components/cli-terminal-modal'
 
 type Theme = 'light' | 'dark' | 'system'
 
@@ -28,9 +29,10 @@ function applyTheme(theme: Theme) {
 export function Settings() {
   const [theme, setTheme] = useState<Theme>(getStoredTheme)
   const [apiUrl, setApiUrl] = useState(getApiBaseUrl() || '')
-  const [showInitSuccess, setShowInitSuccess] = useState(false)
   const [cliCommand, setCliCommand] = useState('')
   const [selectedTools, setSelectedTools] = useState<string[]>([])
+  const [showInitModal, setShowInitModal] = useState(false)
+  const [initTools, setInitTools] = useState<string[] | 'all' | 'none'>('none')
 
   // 订阅配置
   const { data: config } = useConfigSubscription()
@@ -41,6 +43,9 @@ export function Settings() {
   // 获取可用工具列表
   const { data: availableTools } = useQuery(trpc.cli.getAvailableTools.queryOptions())
 
+  // 订阅已配置的工具列表（响应式）
+  const { data: configuredTools } = useConfiguredToolsSubscription()
+
   // 同步配置到本地状态
   useEffect(() => {
     if (config?.cli?.command) {
@@ -48,16 +53,18 @@ export function Settings() {
     }
   }, [config?.cli?.command])
 
-  // 使用 CLI 执行 init（带工具选择）
-  const initMutation = useMutation({
-    mutationFn: (tools: string[] | 'all' | 'none') => trpcClient.cli.init.mutate({ tools }),
-    onSuccess: (result) => {
-      if (result.success) {
-        setShowInitSuccess(true)
-        setTimeout(() => setShowInitSuccess(false), 3000)
-      }
-    },
-  })
+  // 同步已配置的工具到选中状态
+  useEffect(() => {
+    if (configuredTools && configuredTools.length > 0) {
+      setSelectedTools(configuredTools)
+    }
+  }, [configuredTools])
+
+  // 打开 init modal
+  const startInit = (tools: string[] | 'all' | 'none') => {
+    setInitTools(tools)
+    setShowInitModal(true)
+  }
 
   // 切换工具选择
   const toggleTool = (tool: string) => {
@@ -162,17 +169,18 @@ export function Settings() {
           <div>
             <label className="text-sm font-medium mb-2 block">OpenSpec CLI Command</label>
             <p className="text-sm text-muted-foreground mb-3">
-              Configure the command used to run OpenSpec CLI. Examples:
-              <code className="bg-muted px-1 mx-1 rounded">npx openspec</code>,
-              <code className="bg-muted px-1 mx-1 rounded">bunx openspec</code>,
-              <code className="bg-muted px-1 mx-1 rounded">openspec</code> (local install)
+              Configure the command used to run OpenSpec CLI. Install with{' '}
+              <code className="bg-muted px-1 rounded">npm install -g @fission-ai/openspec</code>.
+              Examples:
+              <code className="bg-muted px-1 mx-1 rounded">npx @fission-ai/openspec</code>,
+              <code className="bg-muted px-1 mx-1 rounded">openspec</code> (global install)
             </p>
             <div className="flex gap-2">
               <input
                 type="text"
                 value={cliCommand}
                 onChange={(e) => setCliCommand(e.target.value)}
-                placeholder="npx openspec"
+                placeholder="npx @fission-ai/openspec"
                 className="flex-1 px-3 py-2 border border-border rounded-md bg-background text-foreground font-mono text-sm"
               />
               <button
@@ -315,53 +323,32 @@ export function Settings() {
           {/* Init Buttons */}
           <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
             <button
-              onClick={() => initMutation.mutate(selectedTools.length > 0 ? selectedTools : 'none')}
-              disabled={initMutation.isPending}
-              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50"
+              onClick={() => startInit(selectedTools.length > 0 ? selectedTools : 'none')}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90"
             >
               <FolderPlus className="w-4 h-4" />
-              {initMutation.isPending
-                ? 'Initializing...'
-                : selectedTools.length > 0
-                  ? `Initialize with ${selectedTools.length} tools`
-                  : 'Initialize (no tools)'}
+              {selectedTools.length > 0
+                ? `Initialize with ${selectedTools.length} tools`
+                : 'Initialize (no tools)'}
             </button>
             <button
-              onClick={() => initMutation.mutate('all')}
-              disabled={initMutation.isPending}
-              className="px-4 py-2 border border-border rounded-md hover:bg-muted disabled:opacity-50"
+              onClick={() => startInit('all')}
+              className="px-4 py-2 border border-border rounded-md hover:bg-muted"
             >
               Initialize with All Tools
             </button>
           </div>
-
-          {/* Results */}
-          {showInitSuccess && (
-            <p className="text-sm text-green-600">OpenSpec initialized successfully!</p>
-          )}
-          {initMutation.isError && (
-            <p className="text-sm text-red-600">
-              Error: {initMutation.error?.message || 'Failed to initialize'}
-            </p>
-          )}
-          {initMutation.data && !initMutation.data.success && (
-            <div className="text-sm text-red-600">
-              <p>CLI Error:</p>
-              <pre className="bg-muted p-2 rounded mt-1 text-xs overflow-auto max-h-32">
-                {initMutation.data.stderr || 'Unknown error'}
-              </pre>
-            </div>
-          )}
-          {initMutation.data?.success && initMutation.data.stdout && (
-            <div className="text-sm">
-              <p className="font-medium text-green-600 mb-1">Output:</p>
-              <pre className="bg-muted p-2 rounded text-xs overflow-auto max-h-32">
-                {initMutation.data.stdout}
-              </pre>
-            </div>
-          )}
         </div>
       </section>
+
+      {/* Init Terminal Modal */}
+      <CliTerminalModal
+        title="Initialize OpenSpec"
+        open={showInitModal}
+        onClose={() => setShowInitModal(false)}
+        type="init"
+        initOptions={{ tools: initTools }}
+      />
     </div>
   )
 }

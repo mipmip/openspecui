@@ -1,26 +1,48 @@
+import { resolve } from 'node:path'
 import { serve } from '@hono/node-server'
+import yargs from 'yargs'
+import { hideBin } from 'yargs/helpers'
 import { createServer, createWebSocketServer } from './server.js'
 
-// Parse --dir argument
-function parseArgs(): { projectDir: string; port: number } {
-  const args = process.argv.slice(2)
-  let projectDir = process.env.OPENSPEC_PROJECT_DIR ?? process.cwd()
-  let port = parseInt(process.env.PORT ?? '3100', 10)
-
-  for (let i = 0; i < args.length; i++) {
-    if (args[i] === '--dir' && args[i + 1]) {
-      projectDir = args[i + 1]
-      i++
-    } else if (args[i] === '--port' && args[i + 1]) {
-      port = parseInt(args[i + 1], 10)
-      i++
-    }
-  }
-
-  return { projectDir, port }
+interface Args {
+  dir: string
+  port: number
 }
 
-const { projectDir, port } = parseArgs()
+/**
+ * Parse CLI arguments using yargs
+ * Paths are resolved relative to INIT_CWD (original working directory)
+ */
+async function parseArgs(): Promise<{ projectDir: string; port: number }> {
+  // pnpm sets INIT_CWD to the original working directory
+  const originalCwd = process.env.INIT_CWD || process.cwd()
+
+  // Filter out '--' separator that pnpm/tsx adds
+  const args = hideBin(process.argv).filter((arg) => arg !== '--')
+
+  const argv = (await yargs(args)
+    .option('dir', {
+      alias: 'd',
+      describe: 'Project directory containing openspec/',
+      type: 'string',
+      default: process.env.OPENSPEC_PROJECT_DIR ?? '.',
+    })
+    .option('port', {
+      alias: 'p',
+      describe: 'Port to run the server on',
+      type: 'number',
+      default: parseInt(process.env.PORT ?? '3100', 10),
+    })
+    .help()
+    .parse()) as Args
+
+  return {
+    projectDir: resolve(originalCwd, argv.dir),
+    port: argv.port,
+  }
+}
+
+const { projectDir, port } = await parseArgs()
 
 const server = createServer({ projectDir, port, enableWatcher: true })
 

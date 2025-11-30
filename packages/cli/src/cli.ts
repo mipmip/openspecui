@@ -25,7 +25,7 @@ function getVersion(): string {
 
 interface Args {
   port: number
-  dir: string
+  dir?: string
   open: boolean
   _: (string | number)[]
 }
@@ -36,11 +36,11 @@ async function main(): Promise<void> {
 
   const argv = (await yargs(hideBin(process.argv))
     .scriptName('openspecui')
-    .usage('$0 [project-dir]', 'Visual interface for spec-driven development')
-    .positional('project-dir', {
-      describe: 'Project directory containing openspec/',
-      type: 'string',
-      default: process.cwd(),
+    .usage('$0 [project-dir]', 'Visual interface for spec-driven development', (yargs) => {
+      return yargs.positional('project-dir', {
+        describe: 'Project directory containing openspec/',
+        type: 'string',
+      })
     })
     .option('port', {
       alias: 'p',
@@ -52,7 +52,6 @@ async function main(): Promise<void> {
       alias: 'd',
       describe: 'Project directory containing openspec/',
       type: 'string',
-      default: process.cwd(),
     })
     .option('open', {
       describe: 'Automatically open the browser',
@@ -62,16 +61,17 @@ async function main(): Promise<void> {
     .example('$0', 'Start in current directory')
     .example('$0 ./my-project', 'Start with specific project')
     .example('$0 -p 8080', 'Start on custom port')
+    .example('$0 --dir=./my-project', 'Start with specific project')
     .example('$0 --no-open', 'Start without opening browser')
     .version(getVersion())
     .alias('v', 'version')
     .help()
     .alias('h', 'help')
-    .strict()
-    .parse()) as Args
+    .parse()) as Args & { 'project-dir'?: string }
 
-  // Use positional argument or --dir option, resolve to absolute path from original cwd
-  const rawDir = argv._[0]?.toString() || argv.dir
+  // Priority: positional argument > --dir option > current directory
+  // All paths are resolved relative to originalCwd (where pnpm was invoked)
+  const rawDir = argv['project-dir'] || argv.dir || '.'
   const projectDir = resolve(originalCwd, rawDir)
 
   console.log(`

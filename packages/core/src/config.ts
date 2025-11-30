@@ -12,8 +12,8 @@ export const OpenSpecUIConfigSchema = z.object({
   /** CLI 命令配置 */
   cli: z
     .object({
-      /** CLI 命令前缀，默认 'npx openspec' */
-      command: z.string().default('npx openspec'),
+      /** CLI 命令前缀，默认 'npx @fission-ai/openspec' */
+      command: z.string().default('npx @fission-ai/openspec'),
     })
     .default({}),
 
@@ -31,7 +31,7 @@ export type OpenSpecUIConfig = z.infer<typeof OpenSpecUIConfigSchema>
 /** 默认配置 */
 export const DEFAULT_CONFIG: OpenSpecUIConfig = {
   cli: {
-    command: 'npx openspec',
+    command: 'npx @fission-ai/openspec',
   },
   ui: {
     theme: 'system',

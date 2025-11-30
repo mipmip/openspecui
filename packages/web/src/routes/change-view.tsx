@@ -2,38 +2,21 @@ import { useCallback, useMemo, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { trpcClient } from '@/lib/trpc'
 import { useChangeSubscription } from '@/lib/use-subscription'
-import { useParams, Link, useNavigate } from '@tanstack/react-router'
+import { useParams, Link } from '@tanstack/react-router'
 import { ArrowLeft, Archive, AlertCircle } from 'lucide-react'
 import { MarkdownContent } from '@/components/markdown-content'
 import { MarkdownViewer } from '@/components/markdown-viewer'
 import { Toc, TocSection, type TocItem } from '@/components/toc'
 import { TasksView, useTaskGroups, buildTaskTocItems } from '@/components/tasks-view'
+import { ArchiveModal } from '@/components/archive-modal'
 
 export function ChangeView() {
   const { changeId } = useParams({ from: '/changes/$changeId' })
-  const navigate = useNavigate()
-  const [archiveError, setArchiveError] = useState<string | null>(null)
+  const [showArchiveModal, setShowArchiveModal] = useState(false)
 
   const { data: change, isLoading } = useChangeSubscription(changeId)
   // TODO: validation 暂时不支持订阅，后续可以添加
   const validation = null as { valid: boolean; issues: Array<{ severity: string; message: string; path?: string }> } | null
-
-  const archiveMutation = useMutation({
-    mutationFn: () => trpcClient.cli.archive.mutate({ changeId }),
-    onSuccess: (result) => {
-      if (result.success) {
-        // CLI 执行成功，文件变更会自动触发订阅更新
-        setArchiveError(null)
-        navigate({ to: '/archive' })
-      } else {
-        // CLI 执行失败，显示错误
-        setArchiveError(result.stderr || 'Archive failed')
-      }
-    },
-    onError: (error) => {
-      setArchiveError(error.message)
-    },
-  })
 
   const toggleTaskMutation = useMutation({
     mutationFn: (params: { taskIndex: number; completed: boolean }) =>
@@ -106,26 +89,21 @@ export function ChangeView() {
         </div>
 
         <button
-          onClick={() => archiveMutation.mutate()}
-          disabled={archiveMutation.isPending}
-          className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-muted/80 rounded-md disabled:opacity-50"
+          onClick={() => setShowArchiveModal(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md"
         >
           <Archive className="w-4 h-4" />
-          {archiveMutation.isPending ? 'Archiving...' : 'Archive'}
+          Archive
         </button>
       </div>
 
-      {archiveError && (
-        <div className="border border-red-500 bg-red-500/10 rounded-lg p-4">
-          <div className="flex items-center gap-2 text-red-600 font-medium mb-2">
-            <AlertCircle className="w-5 h-5" />
-            Archive Failed
-          </div>
-          <pre className="text-sm text-red-600 whitespace-pre-wrap overflow-auto max-h-32">
-            {archiveError}
-          </pre>
-        </div>
-      )}
+      {/* Archive Modal */}
+      <ArchiveModal
+        changeId={changeId}
+        changeName={change?.name ?? changeId}
+        open={showArchiveModal}
+        onClose={() => setShowArchiveModal(false)}
+      />
 
       {validation && !validation.valid && (
         <div className="border border-red-500 bg-red-500/10 rounded-lg p-4">

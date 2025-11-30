@@ -68,4 +68,13 @@ export {
 } from './config.js'
 
 // CLI executor for calling external openspec commands
-export { CliExecutor, type CliResult } from './cli-executor.js'
+export { CliExecutor, type CliResult, type CliStreamEvent } from './cli-executor.js'
+
+// Tool configuration detection
+export {
+  TOOL_CONFIGS,
+  getAvailableToolIds,
+  getConfiguredTools,
+  isToolConfigured,
+  type ToolConfig,
+} from './tool-config.js'

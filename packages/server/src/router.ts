@@ -8,11 +8,13 @@ import type {
   ConfigManager,
   CliExecutor,
 } from '@openspecui/core'
+import { getAvailableToolIds, getConfiguredTools } from '@openspecui/core'
 import type { ProviderManager } from '@openspecui/ai-provider'
 import {
   createReactiveSubscription,
   createReactiveSubscriptionWithInput,
 } from './reactive-subscription.js'
+import { createCliStreamObservable } from './cli-stream-observable.js'
 
 export interface Context {
   adapter: OpenSpecAdapter
@@ -20,6 +22,7 @@ export interface Context {
   configManager: ConfigManager
   cliExecutor: CliExecutor
   watcher?: OpenSpecWatcher
+  projectDir: string
 }
 
 const t = initTRPC.context<Context>().create()
@@ -505,27 +508,6 @@ export const configRouter = router({
   }),
 })
 
-/** 可用的 AI 工具列表 */
-const AVAILABLE_TOOLS = [
-  'auggie',
-  'claude',
-  'cline',
-  'roocode',
-  'codebuddy',
-  'costrict',
-  'crush',
-  'cursor',
-  'factory',
-  'gemini',
-  'opencode',
-  'kilocode',
-  'qoder',
-  'windsurf',
-  'codex',
-  'github-copilot',
-  'amazon-q',
-  'qwen',
-] as const
 
 /**
  * CLI router - execute external openspec CLI commands
@@ -537,7 +519,17 @@ export const cliRouter = router({
 
   /** 获取可用的工具列表 */
   getAvailableTools: publicProcedure.query(() => {
-    return AVAILABLE_TOOLS
+    return getAvailableToolIds()
+  }),
+
+  /** 获取已配置的工具列表（检查配置文件是否存在） */
+  getConfiguredTools: publicProcedure.query(async ({ ctx }) => {
+    return getConfiguredTools(ctx.projectDir)
+  }),
+
+  /** 订阅已配置的工具列表（响应式） */
+  subscribeConfiguredTools: publicProcedure.subscription(({ ctx }) => {
+    return createReactiveSubscription(() => getConfiguredTools(ctx.projectDir))
   }),
 
   /** 初始化 OpenSpec（非交互式） */
@@ -584,6 +576,40 @@ export const cliRouter = router({
     .input(z.object({ args: z.array(z.string()) }))
     .mutation(async ({ ctx, input }) => {
       return ctx.cliExecutor.execute(input.args)
+    }),
+
+  /** 流式执行 init（实时输出） */
+  initStream: publicProcedure
+    .input(
+      z
+        .object({
+          tools: z.union([z.array(z.string()), z.literal('all'), z.literal('none')]).optional(),
+        })
+        .optional()
+    )
+    .subscription(({ ctx, input }) => {
+      return createCliStreamObservable((onEvent) =>
+        ctx.cliExecutor.initStream(input?.tools ?? 'all', onEvent)
+      )
+    }),
+
+  /** 流式执行 archive（实时输出） */
+  archiveStream: publicProcedure
+    .input(
+      z.object({
+        changeId: z.string(),
+        skipSpecs: z.boolean().optional(),
+        noValidate: z.boolean().optional(),
+      })
+    )
+    .subscription(({ ctx, input }) => {
+      return createCliStreamObservable((onEvent) =>
+        ctx.cliExecutor.archiveStream(
+          input.changeId,
+          { skipSpecs: input.skipSpecs, noValidate: input.noValidate },
+          onEvent
+        )
+      )
     }),
 })
 

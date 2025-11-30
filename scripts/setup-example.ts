@@ -139,7 +139,7 @@ const SAMPLE_AGENTS_MD = `# AI Agent Instructions
 
 const CONFIG = {
   cli: {
-    command: 'npx openspec',
+    command: 'npx @fission-ai/openspec',
   },
 }
 

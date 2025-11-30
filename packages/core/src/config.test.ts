@@ -134,7 +134,7 @@ describe('ConfigManager', () => {
     it('should return default command', async () => {
       const command = await configManager.getCliCommand()
 
-      expect(command).toBe('npx openspec')
+      expect(command).toBe('npx @fission-ai/openspec')
     })
 
     it('should return custom command', async () => {
@@ -176,7 +176,7 @@ describe('ConfigManager', () => {
 
       // 获取初始值
       const first = await generator.next()
-      expect(first.value.cli.command).toBe('npx openspec')
+      expect(first.value.cli.command).toBe('npx @fission-ai/openspec')
 
       // 直接修改配置文件
       await writeFile(
@@ -198,7 +198,7 @@ describe('ConfigManager', () => {
 describe('OpenSpecUIConfigSchema', () => {
   it('should validate valid config', () => {
     const config = {
-      cli: { command: 'npx openspec' },
+      cli: { command: 'npx @fission-ai/openspec' },
       ui: { theme: 'dark' },
     }
 
@@ -214,7 +214,7 @@ describe('OpenSpecUIConfigSchema', () => {
 
     expect(result.success).toBe(true)
     if (result.success) {
-      expect(result.data.cli.command).toBe('npx openspec')
+      expect(result.data.cli.command).toBe('npx @fission-ai/openspec')
       expect(result.data.ui.theme).toBe('system')
     }
   })
@@ -240,7 +240,7 @@ describe('OpenSpecUIConfigSchema', () => {
 
 describe('DEFAULT_CONFIG', () => {
   it('should have expected default values', () => {
-    expect(DEFAULT_CONFIG.cli.command).toBe('npx openspec')
+    expect(DEFAULT_CONFIG.cli.command).toBe('npx @fission-ai/openspec')
     expect(DEFAULT_CONFIG.ui.theme).toBe('system')
   })
 })

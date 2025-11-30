@@ -43,10 +43,20 @@ export async function reactiveReadFile(filepath: string): Promise<string | null>
     // 设置文件监听
     // 监听文件所在目录，因为文件可能被删除后重新创建
     const dirPath = dirname(normalizedPath)
-    const release = acquireWatcher(dirPath, async () => {
-      const newValue = await getValue()
-      state!.set(newValue)
-    })
+    const release = acquireWatcher(
+      dirPath,
+      async () => {
+        const newValue = await getValue()
+        state!.set(newValue)
+      },
+      {
+        // 当 watcher 发生错误时（如目录被删除），清理缓存
+        onError: () => {
+          stateCache.delete(key)
+          releaseCache.delete(key)
+        },
+      }
+    )
     releaseCache.set(key, release)
   }
 
@@ -82,9 +92,13 @@ export async function reactiveReadDir(
   const optionsKey = JSON.stringify(options)
   const key = `dir:${normalizedPath}:${optionsKey}`
 
+  /** 目录是否存在 */
+  let dirExists = true
+
   const getValue = async (): Promise<string[]> => {
     try {
       const entries = await readdir(normalizedPath, { withFileTypes: true })
+      dirExists = true
       return entries
         .filter((entry) => {
           // 隐藏文件过滤
@@ -106,11 +120,31 @@ export async function reactiveReadDir(
         })
         .map((entry) => entry.name)
     } catch {
+      dirExists = false
       return []
     }
   }
 
   let state = stateCache.get(key) as ReactiveState<string[]> | undefined
+
+  // 如果缓存存在，先检查目录是否仍然存在
+  // 如果目录不存在，清理缓存让其重新创建 watcher
+  if (state) {
+    const currentValue = await getValue()
+    if (!dirExists) {
+      // 目录被删除，清理缓存
+      const release = releaseCache.get(key)
+      if (release) {
+        release()
+        releaseCache.delete(key)
+      }
+      stateCache.delete(key)
+      state = undefined
+    } else {
+      // 目录存在，更新状态（确保数据最新）
+      state.set(currentValue)
+    }
+  }
 
   if (!state) {
     // 创建新的响应式状态
@@ -121,16 +155,35 @@ export async function reactiveReadDir(
     })
     stateCache.set(key, state as ReactiveState<unknown>)
 
-    // 设置目录监听（递归监听）
-    const release = acquireWatcher(
-      normalizedPath,
-      async () => {
-        const newValue = await getValue()
-        state!.set(newValue)
-      },
-      { recursive: true }
-    )
-    releaseCache.set(key, release)
+    // 只有目录存在时才设置监听
+    if (dirExists) {
+      const release = acquireWatcher(
+        normalizedPath,
+        async () => {
+          const newValue = await getValue()
+          if (!dirExists) {
+            // 目录被删除，清理缓存
+            const rel = releaseCache.get(key)
+            if (rel) {
+              rel()
+              releaseCache.delete(key)
+            }
+            stateCache.delete(key)
+          } else {
+            state!.set(newValue)
+          }
+        },
+        {
+          recursive: true,
+          // 当 watcher 发生错误时（如目录被删除），清理缓存
+          onError: () => {
+            stateCache.delete(key)
+            releaseCache.delete(key)
+          },
+        }
+      )
+      releaseCache.set(key, release)
+    }
   }
 
   return state.get()
@@ -164,10 +217,20 @@ export async function reactiveExists(path: string): Promise<boolean> {
 
     // 监听父目录
     const dirPath = dirname(normalizedPath)
-    const release = acquireWatcher(dirPath, async () => {
-      const newValue = await getValue()
-      state!.set(newValue)
-    })
+    const release = acquireWatcher(
+      dirPath,
+      async () => {
+        const newValue = await getValue()
+        state!.set(newValue)
+      },
+      {
+        // 当 watcher 发生错误时（如目录被删除），清理缓存
+        onError: () => {
+          stateCache.delete(key)
+          releaseCache.delete(key)
+        },
+      }
+    )
     releaseCache.set(key, release)
   }
 
@@ -221,10 +284,20 @@ export async function reactiveStat(
     stateCache.set(key, state as ReactiveState<unknown>)
 
     const dirPath = dirname(normalizedPath)
-    const release = acquireWatcher(dirPath, async () => {
-      const newValue = await getValue()
-      state!.set(newValue)
-    })
+    const release = acquireWatcher(
+      dirPath,
+      async () => {
+        const newValue = await getValue()
+        state!.set(newValue)
+      },
+      {
+        // 当 watcher 发生错误时（如目录被删除），清理缓存
+        onError: () => {
+          stateCache.delete(key)
+          releaseCache.delete(key)
+        },
+      }
+    )
     releaseCache.set(key, release)
   }
 

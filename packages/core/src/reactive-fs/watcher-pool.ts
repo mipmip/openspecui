@@ -6,6 +6,8 @@ interface WatcherEntry {
   watcher: FSWatcher
   refCount: number
   callbacks: Set<() => void>
+  /** 错误回调，用于通知上层清理缓存 */
+  onError?: () => void
 }
 
 /** 全局监听器池，共享同一路径的监听器 */
@@ -24,6 +26,7 @@ const DEBOUNCE_MS = 100
  * - 同一路径共享监听器
  * - 引用计数管理生命周期
  * - 内置防抖机制
+ * - 目录删除时自动清理
  *
  * @param path 要监听的路径
  * @param onChange 变更回调
@@ -33,7 +36,7 @@ const DEBOUNCE_MS = 100
 export function acquireWatcher(
   path: string,
   onChange: () => void,
-  options: { recursive?: boolean; debounceMs?: number } = {}
+  options: { recursive?: boolean; debounceMs?: number; onError?: () => void } = {}
 ): () => void {
   const normalizedPath = resolve(path)
   const debounceMs = options.debounceMs ?? DEBOUNCE_MS
@@ -72,12 +75,29 @@ export function acquireWatcher(
 
     watcher.on('error', (err) => {
       console.error(`Watcher error for ${normalizedPath}:`, err)
+      // 发生错误时（如目录被删除），清理该 watcher
+      const errorEntry = watcherPool.get(normalizedPath)
+      if (errorEntry) {
+        errorEntry.watcher.close()
+        watcherPool.delete(normalizedPath)
+        // 通知上层清理缓存
+        if (errorEntry.onError) {
+          errorEntry.onError()
+        }
+        // 清理防抖定时器
+        const timer = debounceTimers.get(normalizedPath)
+        if (timer) {
+          clearTimeout(timer)
+          debounceTimers.delete(normalizedPath)
+        }
+      }
     })
 
     entry = {
       watcher,
       refCount: 0,
       callbacks: new Set(),
+      onError: options.onError,
     }
     watcherPool.set(normalizedPath, entry)
   }
