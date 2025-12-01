@@ -86,7 +86,6 @@ export function ChangeView() {
         label: 'Folder',
         icon: <FolderTree className="h-4 w-4" />,
         content: <FolderEditorViewer changeId={changeId} />,
-        unmountOnHide: true,
       },
     ]
   }, [change, changeId, handleToggleTask, togglingIndex])

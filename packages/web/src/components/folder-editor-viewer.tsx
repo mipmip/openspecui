@@ -1,19 +1,26 @@
 import { useArchiveFilesSubscription, useChangeFilesSubscription } from '@/lib/use-subscription'
+import { javascript } from '@codemirror/lang-javascript'
+import { json } from '@codemirror/lang-json'
+import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
+import { yaml } from '@codemirror/lang-yaml'
+import { languages } from '@codemirror/language-data'
+import type { Extension } from '@codemirror/state'
+import { EditorView } from '@codemirror/view'
+import CodeMirror from '@uiw/react-codemirror'
 import { ChevronRight, File, FileText, Folder, Loader2 } from 'lucide-react'
-import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
-const MonacoEditor = lazy(() =>
-  import('@monaco-editor/react').then((m) => ({ default: m.default }))
-)
-
-function guessLanguage(path: string | null): string | undefined {
-  if (!path) return undefined
-  if (path.endsWith('.md')) return 'markdown'
-  if (path.endsWith('.ts') || path.endsWith('.tsx')) return 'typescript'
-  if (path.endsWith('.js')) return 'javascript'
-  if (path.endsWith('.json')) return 'json'
-  if (path.endsWith('.yml') || path.endsWith('.yaml')) return 'yaml'
-  return undefined
+/** 根据文件路径返回对应的 CodeMirror 语言扩展 */
+function getLanguageExtension(path: string | null): Extension[] {
+  if (!path) return []
+  if (path.endsWith('.md')) return [markdown({ base: markdownLanguage, codeLanguages: languages })]
+  if (path.endsWith('.ts') || path.endsWith('.tsx'))
+    return [javascript({ typescript: true, jsx: path.endsWith('.tsx') })]
+  if (path.endsWith('.js') || path.endsWith('.jsx'))
+    return [javascript({ jsx: path.endsWith('.jsx') })]
+  if (path.endsWith('.json')) return [json()]
+  if (path.endsWith('.yml') || path.endsWith('.yaml')) return [yaml()]
+  return []
 }
 
 /**
@@ -392,7 +399,7 @@ export function FolderEditorViewer({
           />
         </div>
 
-        {/* 编辑器区域：面包屑 + Monaco */}
+        {/* 编辑器区域：面包屑 + CodeMirror */}
         <div className="fev-editor-wrapper border-border bg-background overflow-hidden rounded-md border shadow-sm">
           {activeFile ? (
             <>
@@ -401,31 +408,20 @@ export function FolderEditorViewer({
                 entries={sortedEntries}
                 onNavigate={setSelectedPath}
               />
-              <div className="min-h-0 flex-1">
-                <Suspense
-                  fallback={
-                    <div className="text-muted-foreground flex h-full items-center justify-center">
-                      Loading editor...
-                    </div>
-                  }
-                >
-                  <MonacoEditor
-                    key={activeFile.path}
-                    height="100%"
-                    language={guessLanguage(activeFile.path)}
-                    value={activeFile.content ?? ''}
-                    options={{
-                      readOnly: true,
-                      minimap: { enabled: false },
-                      wordWrap: 'on',
-                      fontSize: 13,
-                      automaticLayout: true,
-                      scrollBeyondLastLine: false,
-                      padding: { top: 12, bottom: 12 },
-                    }}
-                  />
-                </Suspense>
-              </div>
+              <CodeMirror
+                className="scrollbar-thin scrollbar-track-transparent min-h-0 flex-1 overflow-auto"
+                key={activeFile.path}
+                value={activeFile.content ?? ''}
+                readOnly
+                editable={false}
+                basicSetup={{
+                  lineNumbers: true,
+                  foldGutter: false,
+                  highlightActiveLine: false,
+                }}
+                extensions={[...getLanguageExtension(activeFile.path), EditorView.lineWrapping]}
+                style={{ fontSize: 13 }}
+              />
             </>
           ) : (
             <div className="text-muted-foreground flex h-full items-center justify-center">

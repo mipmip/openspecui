@@ -44,7 +44,6 @@ export function ArchiveView() {
       label: 'Folder',
       icon: <FolderTree className="w-4 h-4" />,
       content: <FolderEditorViewer changeId={changeId} archived />,
-      unmountOnHide: true,
     })
 
     return result
