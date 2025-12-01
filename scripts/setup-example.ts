@@ -16,93 +16,134 @@ import { join } from 'path'
 
 const EXAMPLE_DIR = join(import.meta.dirname, '..', 'example')
 
-const SAMPLE_SPEC_AUTH = `# auth
+const SAMPLE_SPEC_AUTH = `# auth Specification
 
-## Overview
-User authentication and authorization system.
-
-## Requirements
-- Support email/password login
-- Support OAuth providers (Google, GitHub)
-- JWT-based session management
-- Role-based access control (RBAC)
-
-## API Endpoints
-
-### POST /api/auth/login
-Login with email and password.
-
-### POST /api/auth/register
-Register a new user account.
-
-### POST /api/auth/logout
-Logout and invalidate session.
-
-### GET /api/auth/me
-Get current user profile.
-`
-
-const SAMPLE_SPEC_USER = `# user
-
-## Overview
-User profile and account management.
+## Purpose
+User authentication and authorization capability.
 
 ## Requirements
-- User profile CRUD operations
-- Avatar upload support
-- Email verification
-- Password reset flow
 
-## Data Model
+### Requirement: Email And Password Login
+The system SHALL allow users to sign in with an email address and password.
 
-\`\`\`typescript
-interface User {
-  id: string
-  email: string
-  name: string
-  avatar?: string
-  role: 'admin' | 'user'
-  createdAt: Date
-  updatedAt: Date
-}
-\`\`\`
+#### Scenario: Valid credentials succeed
+- **WHEN** a user submits the correct email and password
+- **THEN** the system SHALL issue a session token
 
-## API Endpoints
+### Requirement: OAuth Providers
+The system SHALL support Google and GitHub as external identity providers.
 
-### GET /api/users/:id
-Get user by ID.
-
-### PATCH /api/users/:id
-Update user profile.
-
-### DELETE /api/users/:id
-Delete user account.
+#### Scenario: Redirect and callback
+- **WHEN** the user selects an OAuth provider
+- **THEN** the system SHALL redirect to the provider and complete the callback flow.
 `
 
-const SAMPLE_CHANGE_PROPOSAL = `# Add Two-Factor Authentication
+const SAMPLE_SPEC_USER = `# user Specification
+
+## Purpose
+User profile and account preferences.
+
+## Requirements
+
+### Requirement: Profile Management
+The system SHALL allow users to view and update their profile details.
+
+#### Scenario: Update display name
+- **WHEN** the user saves a new display name
+- **THEN** the profile SHALL persist the change and show the updated value.
+`
+
+const SAMPLE_CHANGE_PROPOSAL = `# Change: Add Two-Factor Authentication
 
 ## Why
-Enhance security by adding 2FA support for user accounts.
+Password-only logins leave accounts exposed to credential stuffing and phishing.
 
 ## What Changes
-- Add TOTP-based 2FA
-- Add backup codes generation
-- Update login flow to support 2FA verification
+- **auth**: add a TOTP challenge after password verification and support backup codes
+- **user**: let users manage 2FA settings in their profile, including backup codes export
+- Add a short design note for the 2FA enrollment and verification flow
 
-## Deltas
-- spec: auth (update)
+## Impact
+- Affected specs: auth, user
+- Affected code: api/auth/*, web/settings/*, auth worker
 `
 
-const SAMPLE_CHANGE_TASKS = `# Tasks
+const SAMPLE_CHANGE_TASKS = `# Tasks: add-2fa
 
-- [ ] Design 2FA database schema
-- [ ] Implement TOTP generation and verification
-- [ ] Add backup codes support
-- [ ] Update login API to handle 2FA
-- [ ] Create 2FA setup UI
-- [ ] Add 2FA management in user settings
-- [ ] Write unit tests
-- [ ] Update API documentation
+## 1. API
+- [ ] 1.1 Add TOTP verification endpoint and rate limits
+- [ ] 1.2 Store 2FA secret and backup codes securely (hashed)
+
+## 2. Web
+- [ ] 2.1 Build 2FA setup screen (QR + recovery codes)
+- [ ] 2.2 Add 2FA challenge step to login form
+
+## 3. Quality
+- [ ] 3.1 Add unit tests for TOTP validation and backup code rotation
+- [ ] 3.2 Document happy path and lockout scenarios
+`
+
+const SAMPLE_CHANGE_DESIGN = `# Design: 2FA
+
+## Context
+- Demo design to exercise the Overview + ToC merge across multiple markdown files.
+- Mirrors the real design template we expect for changes.
+
+## Goals / Non-Goals
+- Goals: keep login usable while adding a second factor; provide recovery codes.
+- Non-Goals: hardware keys, WebAuthn, or SMS delivery.
+
+## Decisions
+1) Use TOTP as the primary second factor.
+2) Back up access via single-use recovery codes.
+3) Reuse existing session issuance after second factor success.
+
+## Risks / Trade-offs
+- Additional latency on login → mitigated by caching the latest TOTP window.
+- Recovery codes leakage → mitigate with hashing and one-time visibility.
+
+## Open Questions
+- Should we allow remember-this-device?
+- Do we need rate limits per IP or per account?
+`
+
+const SAMPLE_DELTA_AUTH = `# Delta for auth
+
+## ADDED Requirements
+
+### Requirement: Time-Based One-Time Password
+The system SHALL prompt for a 6-digit TOTP after password verification when the user has enabled 2FA.
+
+#### Scenario: Valid TOTP continues login
+- **WHEN** a user submits the correct TOTP within the allowed window
+- **THEN** the system SHALL issue the session token and record the verification method
+
+#### Scenario: Invalid TOTP blocks login
+- **WHEN** the TOTP is missing or invalid
+- **THEN** the system SHALL reject the login attempt and keep the session unauthenticated
+
+## MODIFIED Requirements
+
+### Requirement: Email And Password Login
+The system SHALL treat password verification as the first factor and require a second factor when 2FA is enabled for the account.
+`
+
+const SAMPLE_DELTA_USER = `# Delta for user
+
+## ADDED Requirements
+
+### Requirement: Backup Codes Management
+The system SHALL allow users to view, regenerate, and revoke backup codes from their profile settings.
+
+#### Scenario: Regenerate invalidates previous
+- **WHEN** a user regenerates backup codes
+- **THEN** previous codes SHALL be revoked and the UI SHALL present the new set once for download.
+`
+
+const SAMPLE_CHANGE_NOTES = `# Notes
+
+- Demo change that includes multiple delta specs (auth, user)
+- Extra file so the Folder tab can show non-spec assets
 `
 
 const SAMPLE_PROJECT_MD = `# Example Project
@@ -161,6 +202,9 @@ async function setup(clean = false) {
     join(EXAMPLE_DIR, 'openspec', 'specs', 'user'),
     join(EXAMPLE_DIR, 'openspec', 'changes'),
     join(EXAMPLE_DIR, 'openspec', 'changes', 'add-2fa'),
+    join(EXAMPLE_DIR, 'openspec', 'changes', 'add-2fa', 'specs'),
+    join(EXAMPLE_DIR, 'openspec', 'changes', 'add-2fa', 'specs', 'auth'),
+    join(EXAMPLE_DIR, 'openspec', 'changes', 'add-2fa', 'specs', 'user'),
     join(EXAMPLE_DIR, 'openspec', 'archive'),
   ]
 
@@ -174,9 +218,13 @@ async function setup(clean = false) {
     // Specs: each spec is a directory with spec.md
     [join(EXAMPLE_DIR, 'openspec', 'specs', 'auth', 'spec.md'), SAMPLE_SPEC_AUTH],
     [join(EXAMPLE_DIR, 'openspec', 'specs', 'user', 'spec.md'), SAMPLE_SPEC_USER],
-    // Changes: each change is a directory with proposal.md + tasks.md
+    // Changes: proposal + tasks + design + delta specs
     [join(EXAMPLE_DIR, 'openspec', 'changes', 'add-2fa', 'proposal.md'), SAMPLE_CHANGE_PROPOSAL],
     [join(EXAMPLE_DIR, 'openspec', 'changes', 'add-2fa', 'tasks.md'), SAMPLE_CHANGE_TASKS],
+    [join(EXAMPLE_DIR, 'openspec', 'changes', 'add-2fa', 'design.md'), SAMPLE_CHANGE_DESIGN],
+    [join(EXAMPLE_DIR, 'openspec', 'changes', 'add-2fa', 'notes.md'), SAMPLE_CHANGE_NOTES],
+    [join(EXAMPLE_DIR, 'openspec', 'changes', 'add-2fa', 'specs', 'auth', 'spec.md'), SAMPLE_DELTA_AUTH],
+    [join(EXAMPLE_DIR, 'openspec', 'changes', 'add-2fa', 'specs', 'user', 'spec.md'), SAMPLE_DELTA_USER],
     // Project-level files
     [join(EXAMPLE_DIR, 'openspec', 'project.md'), SAMPLE_PROJECT_MD],
     [join(EXAMPLE_DIR, 'openspec', 'AGENTS.md'), SAMPLE_AGENTS_MD],

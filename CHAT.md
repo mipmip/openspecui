@@ -438,3 +438,96 @@ pnpm example:clean && pnpm example:setup
 ---
 
 在设置界面，API Server URL 这里的placeholder没有客观显示“默认的api-server-url”
+
+---
+
+我发现Changes页面，是proposal.md+tasks.md，其它文件你好像就忽略了，
+请你仔细阅读 openspec[./references] 的源码了解 Change 的结构
+
+如果你想通实际的案例进一步了解确认Change 的结构，
+你可以看一下  `/Users/kzf/Dev/GitHub/chain-services/openspec/changes/add-rwa-org-team-exchange-performance` 这个文件夹的结构。
+
+我的要求：
+1. 在 changes 页面中，合理地展示一项 Change 的内容
+   1. 一个changes下面可能有多个specs吗？如果是的话，要考虑一下二级路由？如果不是的话，是不是一个 Tabs 就能解决展示的问题？
+2. 要更新一下我们的setup-example.ts。
+3. 如果这个 Change 的文件夹下面有其它的非 spec 的标准，在Tabs中，新增一个 Folder-Tab， 可以列出这个 Change 的文件夹的所有文件。在这个页面中，将是一个mini的code-editor，右边是文件列表，左边是monaco editor
+1. 所有新增或者修改的功能，底层一定是响应式的接口，可以实时变更的。参考现有的接口标准来进行开发。
+
+---
+
+1. Tab-Folder
+    1. Folder/Overview结构请你参考我们的ToC组件，它基于容器查询，在桌面端和移动端都有良好的体验。
+       - 除了要考虑移动端设计，还需要考虑文件可能过多，溢出列表的问题，因此你可以充分参考markdown-viewer的组件设计
+    2. Folder自身没必要做 border 样式，专注于内容的样式就好，否则组件搭配在一起，会出现很多层border，体验会大大下降
+    3. 打开Folder，然后切换到别的Tab，再切回Folder，会报错： `InstantiationService has been disposed`
+    4. `Change Files`的文件列表的顺序存在问题，是一个低级错误，请你审查并修复
+2. Tab-Overview
+    1. Affected Specs中的内容是不是重复出现了，我看到它重复展示了两个`rwa-org-team-exchange-performance`。
+    2. Affected Specs列表中的 Suffix: `ADDED`，这个是什么意义？还有其它的状态值吗？
+    3. Overview混合了多个md文件，但是ToC只显示了一层内容。md文件的ToC应该混入Overview的ToC。
+
+---
+
+因为`Change Files`的宽度有限，因此要考虑加入横向滚动。
+
+---
+path-marquee需要改进一下，它居然耦合的copy功能。
+因此path-marquee要先拆分成两部分：
+1. path-marquee 要改名成 text-marquee，专注于内容的展示
+2. 新增一个 copy-button，可以展示“可复制”的小图标，以及复制成功的状态与交互。
+将这两个组件组合在一起，替换现有的path-marquee组件
+
+---
+
+我发现project.tsx是自己维护了Tabs的逻辑，为什么，它有什么特殊性吗？还有什么地方也是存在这样的特殊性？
+你有什么建议吗？
+
+---
+
+Change详情页面的顶部的header，使用容器查询来优化样式：在空间比较不够的时候，Archive按钮简化成只有Icon，不显示文字。
+
+---
+
+1. 右边的Files列表中，文件和文件夹没有按照正确地关系进行嵌套。比如说`spec.md`应该嵌套在`rwa-org-team-exchange-performance`文件夹下，但是结果却跑到`task.md`文件下嵌套着。
+2. FolderEditorViewer 组件外层有一个空的div包裹着，导致h-full没有生效。
+3. 在Editor的最上方，最好显示完整的路径（vscode面包屑的那种效果）
+
+---
+
+现在AI的FolderEditorViewer在Tabs中使用的时候总是会被完全销毁，否则就会报错：
+
+---
+
+你确实修复了问题，但是这不是我想看到的结果，因为现在你实在change-overfiew中自己完全实现了一套markdown-viewer的逻辑。
+我的目的是让MarkdownViewer易用，所以MarkdownViewer在参数设计上就存在多种重载的可能。
+因此我们的重点是：为什么MarkdownViewer无法满足你直接使用达成我们最终的目的？
+如何设计MarkdownViewer才能满足我们的这种自定义构建内容的需求？
+
+不要急着写代码，说说你能想到的架构设计
+
+---
+
+我的建议是，做好单层的 MarkdownViewer，使用TocContext来做到多层嵌套。
+比如说：
+```tsx
+interface MarkdownViewerProps{
+  markdown:string|MarkdownViewerBuilder
+}
+{/*自动去获取上下文的 TocContext，如果没有会自动创建，内部调用MarkdownContext组件的时候，会返回这个markdown内容的tocItems，然后插入到TocContext中 */}
+<MarkdownViewer markdown={({H1,H2,Section})=>{
+  return <>
+    <H1>S1</H1>
+    {/*Section 会自动将内容的toc层级+1*/}
+    <Section> 
+      {/*获取到 TocContext，并将渲染的内容注入给TocContext*/}
+      <MarkdownViewer markdown={"# markdown1"}></MarkdownViewer>
+    </Section>
+    <H2>S2</H2>
+    <Section>
+      <MarkdownViewer markdown={"## markdown2"}></MarkdownViewer>
+    </Section>
+  </>
+}}>
+</MarkdownViewer>
+```

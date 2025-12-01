@@ -1,63 +1,180 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { MarkdownContent } from './markdown-content'
 import { generateTimelineScope, Toc, type TocItem } from './toc'
+import { slugify, TocCollector, TocLevelProvider, TocProvider, useTocContext } from './toc-context'
 
-interface MarkdownViewerProps {
-  /** Markdown text to render (auto-generates ToC from headings) */
-  markdown?: string
-  /** Custom content (use with toc prop for custom ToC) */
+// ============================================================================
+// Types
+// ============================================================================
+
+type HeadingLevel = 1 | 2 | 3 | 4 | 5 | 6
+
+interface HeadingProps {
+  id?: string
   children?: ReactNode
-  /** Custom ToC element (if not provided, auto-generates from markdown headings) */
-  toc?: ReactNode
-  /** ToC items for timeline-scope binding (required when using custom toc) */
-  tocItems?: TocItem[]
+}
+
+type HeadingComponent = (props: HeadingProps) => ReactNode
+
+interface SectionProps {
+  children?: ReactNode
   className?: string
 }
 
+type SectionComponent = (props: SectionProps) => ReactNode
+
+export interface BuilderComponents {
+  H1: HeadingComponent
+  H2: HeadingComponent
+  H3: HeadingComponent
+  H4: HeadingComponent
+  H5: HeadingComponent
+  H6: HeadingComponent
+  /** Section 会自动将内部内容的 ToC 层级 +1 */
+  Section: SectionComponent
+}
+
+export type MarkdownBuilderFn = (components: BuilderComponents) => ReactNode
+
+export interface MarkdownViewerProps {
+  /** Markdown 内容：字符串或 Builder 函数 */
+  markdown: string | MarkdownBuilderFn
+  className?: string
+}
+
+// ============================================================================
+// MarkdownViewer - 主组件
+// ============================================================================
+
 /**
- * Unified viewer with ToC sidebar.
- * Supports two modes:
- * 1. Markdown mode: pass `markdown` string, ToC auto-generated from headings
- * 2. Custom mode: pass `children` + `toc` + `tocItems` for custom content with custom ToC
+ * 统一的 Markdown 文档查看器，支持 ToC 侧边栏和嵌套。
+ *
+ * 两种使用模式：
+ * 1. 字符串模式：`<MarkdownViewer markdown="# Hello" />`
+ * 2. Builder 模式：`<MarkdownViewer markdown={({ H1, Section }) => <H1>Hello</H1>} />`
+ *
+ * 嵌套时自动检测父级 Context，只渲染内容不显示 ToC sidebar。
  */
-export function MarkdownViewer({
+export function MarkdownViewer({ markdown, className = '' }: MarkdownViewerProps) {
+  const parentCtx = useTocContext()
+  const isNested = !!parentCtx
+
+  if (isNested) {
+    // 嵌套模式：只渲染内容，向父级贡献 ToC items
+    return <NestedMarkdownViewer markdown={markdown} className={className} />
+  }
+
+  // 顶层模式：渲染完整布局（content + ToC sidebar）
+  return <RootMarkdownViewer markdown={markdown} className={className} />
+}
+
+// ============================================================================
+// RootMarkdownViewer - 顶层模式
+// ============================================================================
+
+function RootMarkdownViewer({ markdown, className }: MarkdownViewerProps) {
+  const [tocItems, setTocItems] = useState<TocItem[]>([])
+  const collectorRef = useRef<TocCollector>(null!)
+
+  // 每次渲染前重置 collector
+  collectorRef.current = new TocCollector()
+  const collector = collectorRef.current
+
+  // 渲染后更新 tocItems
+  useEffect(() => {
+    const newItems = collectorRef.current.getItems()
+    setTocItems((prev) => {
+      if (arraysEqual(prev, newItems)) return prev
+      return newItems
+    })
+  })
+
+  const timelineScope = useMemo(() => generateTimelineScope(tocItems), [tocItems])
+
+  // 渲染内容（在 TocProvider 内部，这样嵌套的 MarkdownViewer 能获取 Context）
+  const content =
+    typeof markdown === 'string' ? (
+      <StringMarkdownContent markdown={markdown} collector={collector} levelOffset={0} />
+    ) : (
+      <BuilderMarkdownContent builder={markdown} collector={collector} levelOffset={0} />
+    )
+
+  return (
+    <TocProvider collector={collector} levelOffset={0} isRoot>
+      <div className={`@container-[size] h-full ${className}`}>
+        <style>{viewerStyles}</style>
+        <MarkdownContainer className="viewer-layout gap-6" timelineScope={timelineScope}>
+          <Toc items={tocItems} className="viewer-toc" />
+          <div className="viewer-content min-w-0">{content}</div>
+        </MarkdownContainer>
+      </div>
+    </TocProvider>
+  )
+}
+
+// ============================================================================
+// NestedMarkdownViewer - 嵌套模式
+// ============================================================================
+
+function NestedMarkdownViewer({ markdown, className }: MarkdownViewerProps) {
+  const ctx = useTocContext()!
+  const { collector, levelOffset } = ctx
+
+  // 嵌套模式：使用父级的 collector，但应用当前的 levelOffset
+  return typeof markdown === 'string' ? (
+    <StringMarkdownContent
+      markdown={markdown}
+      className={className}
+      collector={collector}
+      levelOffset={levelOffset}
+    />
+  ) : (
+    <BuilderMarkdownContent
+      builder={markdown}
+      className={className}
+      collector={collector}
+      levelOffset={levelOffset}
+    />
+  )
+}
+
+// ============================================================================
+// StringMarkdownContent - 字符串模式内容
+// ============================================================================
+
+function StringMarkdownContent({
   markdown,
-  children,
-  toc,
-  tocItems: externalTocItems,
-  className = '',
-}: MarkdownViewerProps) {
-  const [autoTocItems, setAutoTocItems] = useState<TocItem[]>([])
+  collector,
+  levelOffset,
+  className,
+}: {
+  markdown: string
+  collector: TocCollector
+  levelOffset: number
+  className?: string
+}) {
+  // 为 markdown 中的标题创建自定义组件
+  const components = useMemo(() => {
+    const slugCount = new Map<string, number>()
 
-  // Collect ToC items during render from actual heading components
-  const tocItemsRef = useRef<TocItem[]>([])
-  const headingIndexRef = useRef(0)
+    const createHeading = (level: HeadingLevel) => {
+      return function Heading({ children }: { children?: ReactNode }) {
+        const text = extractTextFromChildren(children)
+        const baseSlug = slugify(text) || 'heading'
 
-  // Reset refs before each render
-  tocItemsRef.current = []
-  headingIndexRef.current = 0
+        // 处理重复 id
+        const count = slugCount.get(baseSlug) ?? 0
+        slugCount.set(baseSlug, count + 1)
+        const id = count > 0 ? `${baseSlug}-${count + 1}` : baseSlug
 
-  // Create heading components with ToC integration (only used in markdown mode)
-  const headingComponents = useMemo(() => {
-    const createHeading = (level: 1 | 2 | 3 | 4 | 5 | 6) => {
-      const Tag = `h${level}` as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'
-      return function Heading({ children: content }: { children?: ReactNode }) {
-        const index = headingIndexRef.current++
-        const label = String(content)
-        // Generate slug from heading text for anchor links
-        const slug = label
-          .toLowerCase()
-          .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '-')
-          .replace(/^-|-$/g, '')
-        const id = slug || `heading-${index}`
-
-        // Collect ToC item during render
-        tocItemsRef.current.push({ id, label, level })
+        // 应用层级偏移
+        const adjustedLevel = Math.min(level + levelOffset, 6) as HeadingLevel
+        const { index } = collector.add(text, adjustedLevel, id)
 
         return (
-          <Tag id={id} style={{ viewTimelineName: `--toc-${index}` }}>
-            {content}
-          </Tag>
+          <HeadingElement level={adjustedLevel} id={id} index={index}>
+            {children}
+          </HeadingElement>
         )
       }
     }
@@ -70,53 +187,138 @@ export function MarkdownViewer({
       h5: createHeading(5),
       h6: createHeading(6),
     }
-  }, [])
-
-  // Update ToC items after render - compare to avoid infinite loop
-  // Using useLayoutEffect to sync before paint, with markdown as dependency
-  // since ToC items only change when markdown content changes
-  useEffect(() => {
-    if (toc) return // Skip auto-generation when using custom toc
-
-    const newItems = tocItemsRef.current
-    if (newItems.length === 0) return
-
-    // Only update if items changed (compare by id+label)
-    const hasChanged =
-      newItems.length !== autoTocItems.length ||
-      newItems.some((item, i) => item.id !== autoTocItems[i]?.id || item.label !== autoTocItems[i]?.label)
-
-    if (hasChanged) {
-      setAutoTocItems([...newItems])
-    }
-  }, [markdown, toc, autoTocItems])
-
-  // Determine which ToC items to use for timeline-scope
-  const tocItems = externalTocItems ?? autoTocItems
-  const timelineScope = useMemo(() => generateTimelineScope(tocItems), [tocItems])
-
-  // Determine which ToC to render - always render Toc component to keep children stable
-  const tocElement = toc ?? <Toc items={autoTocItems} className="viewer-toc" />
-
-  // Determine content
-  const content = markdown ? (
-    <MarkdownContent className="viewer-content min-w-0" components={headingComponents}>
-      {markdown}
-    </MarkdownContent>
-  ) : (
-    <div className="viewer-content min-w-0">{children}</div>
-  )
+  }, [collector, levelOffset])
 
   return (
-    <div className={`@container-[size] h-full ${className}`}>
-      <style>{viewerStyles}</style>
-      <MarkdownContainer className="viewer-layout gap-6" timelineScope={timelineScope}>
-        {tocElement}
-        {content}
-      </MarkdownContainer>
-    </div>
+    <MarkdownContent className={className} components={components}>
+      {markdown}
+    </MarkdownContent>
   )
 }
+
+// ============================================================================
+// BuilderMarkdownContent - Builder 模式内容
+// ============================================================================
+
+function BuilderMarkdownContent({
+  builder,
+  collector,
+  levelOffset,
+  className,
+}: {
+  builder: MarkdownBuilderFn
+  collector: TocCollector
+  levelOffset: number
+  className?: string
+}) {
+  // 创建 Builder 组件
+  const components = useMemo<BuilderComponents>(() => {
+    const slugCount = new Map<string, number>()
+
+    const createHeading = (level: HeadingLevel): HeadingComponent => {
+      return function Heading({ id: fixedId, children }: HeadingProps) {
+        const text = extractTextFromChildren(children)
+        const baseSlug = fixedId ?? (slugify(text) || 'heading')
+
+        // 处理重复 id
+        const count = slugCount.get(baseSlug) ?? 0
+        slugCount.set(baseSlug, count + 1)
+        const id = count > 0 ? `${baseSlug}-${count + 1}` : baseSlug
+
+        // 应用层级偏移
+        const adjustedLevel = Math.min(level + levelOffset, 6) as HeadingLevel
+        const { index } = collector.add(text, adjustedLevel, id)
+
+        return (
+          <HeadingElement level={adjustedLevel} id={id} index={index}>
+            {children}
+          </HeadingElement>
+        )
+      }
+    }
+
+    const Section: SectionComponent = ({ children, className }) => {
+      // Section 通过 TocLevelProvider 提供层级 +1
+      return (
+        <TocLevelProvider additionalOffset={1}>
+          <section className={className}>{children}</section>
+        </TocLevelProvider>
+      )
+    }
+
+    return {
+      H1: createHeading(1),
+      H2: createHeading(2),
+      H3: createHeading(3),
+      H4: createHeading(4),
+      H5: createHeading(5),
+      H6: createHeading(6),
+      Section,
+    }
+  }, [collector, levelOffset])
+
+  return <div className={`markdown-content ${className}`}>{builder(components)}</div>
+}
+
+// ============================================================================
+// Helper Components
+// ============================================================================
+
+function HeadingElement({
+  level,
+  id,
+  index,
+  children,
+}: {
+  level: HeadingLevel
+  id: string
+  index: number
+  children?: ReactNode
+}) {
+  const style = { viewTimelineName: `--toc-${index}` }
+  switch (level) {
+    case 1:
+      return (
+        <h1 id={id} style={style}>
+          {children}
+        </h1>
+      )
+    case 2:
+      return (
+        <h2 id={id} style={style}>
+          {children}
+        </h2>
+      )
+    case 3:
+      return (
+        <h3 id={id} style={style}>
+          {children}
+        </h3>
+      )
+    case 4:
+      return (
+        <h4 id={id} style={style}>
+          {children}
+        </h4>
+      )
+    case 5:
+      return (
+        <h5 id={id} style={style}>
+          {children}
+        </h5>
+      )
+    case 6:
+      return (
+        <h6 id={id} style={style}>
+          {children}
+        </h6>
+      )
+  }
+}
+
+// ============================================================================
+// MarkdownContainer - 布局容器
+// ============================================================================
 
 interface MarkdownContainerProps {
   children: ReactNode
@@ -128,7 +330,7 @@ interface MarkdownContainerProps {
 /**
  * Shared container for markdown-style content with consistent scrolling and padding.
  */
-export function MarkdownContainer({ children, className = '', timelineScope }: MarkdownContainerProps) {
+function MarkdownContainer({ children, className = '', timelineScope }: MarkdownContainerProps) {
   return (
     <div
       className={`scrollbar-thin scrollbar-track-transparent h-full overflow-auto scroll-smooth p-6 ${className}`}
@@ -138,6 +340,35 @@ export function MarkdownContainer({ children, className = '', timelineScope }: M
     </div>
   )
 }
+
+// ============================================================================
+// Utilities
+// ============================================================================
+
+/** 从 React children 中提取纯文本 */
+function extractTextFromChildren(children: ReactNode): string {
+  if (children == null || typeof children === 'boolean') return ''
+  if (typeof children === 'string' || typeof children === 'number') return String(children)
+  if (Array.isArray(children)) return children.map(extractTextFromChildren).join('')
+  if (typeof children === 'object' && 'props' in children) {
+    return extractTextFromChildren(
+      (children as { props?: { children?: ReactNode } }).props?.children
+    )
+  }
+  return ''
+}
+
+/** 比较两个 TocItem 数组是否相等 */
+function arraysEqual(a: TocItem[], b: TocItem[]): boolean {
+  if (a.length !== b.length) return false
+  return a.every(
+    (item, i) => item.id === b[i].id && item.label === b[i].label && item.level === b[i].level
+  )
+}
+
+// ============================================================================
+// Styles
+// ============================================================================
 
 const css = String.raw
 /** CSS for container queries layout */

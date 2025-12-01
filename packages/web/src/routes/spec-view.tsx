@@ -1,35 +1,17 @@
-import { MarkdownContent } from '@/components/markdown-content'
 import { MarkdownViewer } from '@/components/markdown-viewer'
-import { Toc, TocSection, type TocItem } from '@/components/toc'
 import { useSpecSubscription } from '@/lib/use-subscription'
 import { Link, useParams } from '@tanstack/react-router'
 import { AlertCircle, AlertTriangle, ArrowLeft, CheckCircle, Info } from 'lucide-react'
-import { useMemo } from 'react'
 
 export function SpecView() {
   const { specId } = useParams({ from: '/specs/$specId' })
 
   const { data: spec, isLoading } = useSpecSubscription(specId)
   // TODO: validation 暂时不支持订阅，后续可以添加
-  const validation = null as { valid: boolean; issues: Array<{ severity: string; message: string; path?: string }> } | null
-
-  // Build ToC items from spec sections - must be before any conditional returns
-  const tocItems = useMemo<TocItem[]>(() => {
-    if (!spec) return []
-
-    const items: TocItem[] = [{ id: 'overview', label: 'Overview', level: 1 }]
-
-    if (spec.requirements.length > 0) {
-      items.push({ id: 'requirements', label: 'Requirements', level: 1 })
-      for (const req of spec.requirements) {
-        // Use requirement ID as ToC item, truncate long text
-        const label = req.text.length > 30 ? `${req.text.slice(0, 30)}…` : req.text
-        items.push({ id: `req-${req.id}`, label, level: 2 })
-      }
-    }
-
-    return items
-  }, [spec])
+  const validation = null as {
+    valid: boolean
+    issues: Array<{ severity: string; message: string; path?: string }>
+  } | null
 
   if (isLoading) {
     return <div className="animate-pulse">Loading spec...</div>
@@ -54,62 +36,59 @@ export function SpecView() {
       {validation && <ValidationStatus validation={validation} />}
 
       <MarkdownViewer
-        toc={<Toc items={tocItems} className="viewer-toc" />}
-        tocItems={tocItems}
         className="min-h-0 flex-1"
-      >
-        <div className="space-y-6">
-          <TocSection id="overview" index={0}>
-            <h2 className="mb-2 text-lg font-semibold">Overview</h2>
-            <div className="bg-muted/30 rounded-lg p-4">
-              {spec.overview ? (
-                <MarkdownContent>{spec.overview}</MarkdownContent>
-              ) : (
-                <span className="text-muted-foreground">No overview</span>
-              )}
-            </div>
-          </TocSection>
+        markdown={({ H1, H2, Section }) => (
+          <div className="space-y-6">
+            {/* Overview */}
+            <section>
+              <H1 id="overview">Overview</H1>
+              <div className="mt-2 rounded-lg bg-muted/30 p-4">
+                {spec.overview ? (
+                  <MarkdownViewer markdown={spec.overview} />
+                ) : (
+                  <span className="text-muted-foreground">No overview</span>
+                )}
+              </div>
+            </section>
 
-          <TocSection id="requirements" index={1}>
-            <h2 className="mb-3 text-lg font-semibold">Requirements ({spec.requirements.length})</h2>
-            <div className="space-y-4">
-              {spec.requirements.map((req, reqIndex) => (
-                <TocSection
-                  key={req.id}
-                  id={`req-${req.id}`}
-                  index={2 + reqIndex}
-                  as="div"
-                  className="border-border rounded-lg border p-4"
-                >
-                  <div className="mb-2 font-medium">{req.text}</div>
-                  {req.scenarios.length > 0 && (
-                    <div className="mt-3">
-                      <div className="text-muted-foreground mb-2 text-sm font-medium">
-                        Scenarios ({req.scenarios.length})
-                      </div>
-                      {req.scenarios.map((scenario, i) => {
-                        // Remove leading/trailing --- separators that may be used for splitting
-                        const content = scenario.rawText
-                          .replace(/^---\n?/, '')
-                          .replace(/\n?---$/, '')
-                          .trim()
-                        return (
-                          <div key={i} className="bg-muted/50 rounded-md p-3">
-                            <MarkdownContent>{content}</MarkdownContent>
+            {/* Requirements */}
+            <section>
+              <H1 id="requirements">Requirements ({spec.requirements.length})</H1>
+              <div className="mt-3 space-y-4">
+                {spec.requirements.map((req) => (
+                  <Section key={req.id}>
+                    <div className="rounded-lg border border-border p-4">
+                      <H2 id={`req-${req.id}`}>{req.text}</H2>
+                      {req.scenarios.length > 0 && (
+                        <div className="mt-3">
+                          <div className="mb-2 text-sm font-medium text-muted-foreground">
+                            Scenarios ({req.scenarios.length})
                           </div>
-                        )
-                      })}
+                          {req.scenarios.map((scenario, i) => {
+                            // Remove leading/trailing --- separators
+                            const content = scenario.rawText
+                              .replace(/^---\n?/, '')
+                              .replace(/\n?---$/, '')
+                              .trim()
+                            return (
+                              <div key={i} className="rounded-md bg-muted/50 p-3">
+                                <MarkdownViewer markdown={content}/>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </TocSection>
-              ))}
-              {spec.requirements.length === 0 && (
-                <div className="text-muted-foreground">No requirements defined</div>
-              )}
-            </div>
-          </TocSection>
-        </div>
-      </MarkdownViewer>
+                  </Section>
+                ))}
+                {spec.requirements.length === 0 && (
+                  <div className="text-muted-foreground">No requirements defined</div>
+                )}
+              </div>
+            </section>
+          </div>
+        )}
+      />
     </div>
   )
 }

@@ -12,12 +12,14 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
     "@openspecui/server": "workspace:*",
     "@tanstack/react-query": "^5.62.16",
     "@tanstack/react-router": "^1.99.0",
     "@trpc/client": "^11.0.0",
     "@trpc/tanstack-react-query": "^11.0.0",
     "lucide-react": "^0.472.0",
+    "monaco-editor": "^0.52.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-markdown": "^10.1.0",

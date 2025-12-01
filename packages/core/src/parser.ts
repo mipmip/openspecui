@@ -1,4 +1,12 @@
-import type { Spec, Requirement, Change, Delta, Task } from './schemas.js'
+import type {
+  Spec,
+  Requirement,
+  Change,
+  Delta,
+  Task,
+  DeltaSpec,
+  DeltaOperation,
+} from './schemas.js'
 
 /**
  * Markdown parser for OpenSpec documents
@@ -118,7 +126,12 @@ export class MarkdownParser {
   /**
    * Parse a change proposal markdown content into a Change object
    */
-  parseChange(changeId: string, proposalContent: string, tasksContent: string = ''): Change {
+  parseChange(
+    changeId: string,
+    proposalContent: string,
+    tasksContent: string = '',
+    options?: { design?: string; deltaSpecs?: DeltaSpec[] }
+  ): Change {
     const lines = proposalContent.split('\n')
     let name = changeId
     let why = ''
@@ -165,18 +178,167 @@ export class MarkdownParser {
 
     const tasks = this.parseTasks(tasksContent)
 
+    const deltasFromDeltaSpecs = this.parseDeltasFromDeltaSpecs(options?.deltaSpecs)
+    const deltasFromWhatChanges = this.parseDeltasFromWhatChanges(whatChanges)
+
+    const combinedDeltas = deltasFromDeltaSpecs.length > 0 ? deltasFromDeltaSpecs : deltas
+    const finalDeltas = combinedDeltas.length > 0 ? combinedDeltas : deltasFromWhatChanges
+
     return {
       id: changeId,
       name: name || changeId,
       why: why.trim(),
       whatChanges: whatChanges.trim(),
-      deltas,
+      deltas: finalDeltas,
       tasks,
       progress: {
         total: tasks.length,
         completed: tasks.filter((t) => t.completed).length,
       },
+      design: options?.design,
+      deltaSpecs: options?.deltaSpecs,
     }
+  }
+
+  private parseDeltasFromWhatChanges(whatChanges: string): Delta[] {
+    if (!whatChanges.trim()) return []
+    const deltas: Delta[] = []
+    const lines = whatChanges.split('\n')
+
+    for (const line of lines) {
+      const match = line.match(/^\s*-\s*\*\*([^*:]+)(?::\*\*|\*\*:):?\s*(.+)$/)
+      if (!match) continue
+
+      const spec = match[1].trim()
+      const description = match[2].trim()
+      const lower = description.toLowerCase()
+
+      let operation: DeltaOperation = 'MODIFIED'
+      if (/\brename(s|d|ing)?\b/.test(lower) || /\brenamed\b/.test(lower)) {
+        operation = 'RENAMED'
+      } else if (/\bremove(s|d|ing)?\b/.test(lower) || /\bdelete(s|d|ing)?\b/.test(lower)) {
+        operation = 'REMOVED'
+      } else if (/\badd(s|ed|ing)?\b/.test(lower) || /\bcreate(s|d|ing)?\b/.test(lower) || /\bnew\b/.test(lower)) {
+        operation = 'ADDED'
+      }
+
+      deltas.push({ spec, operation, description })
+    }
+
+    return deltas
+  }
+
+  private parseDeltasFromDeltaSpecs(deltaSpecs?: DeltaSpec[]): Delta[] {
+    if (!deltaSpecs || deltaSpecs.length === 0) return []
+    return deltaSpecs.flatMap((deltaSpec) => this.parseDeltaSpecContent(deltaSpec))
+  }
+
+  private parseDeltaSpecContent(deltaSpec: DeltaSpec): Delta[] {
+    const deltas: Delta[] = []
+    const lines = deltaSpec.content.split('\n')
+
+    let currentOperation: DeltaOperation | null = null
+    let currentRequirement: {
+      title: string
+      descriptionLines: string[]
+      scenarios: Array<{ title: string; lines: string[] }>
+    } | null = null
+    let renameBuffer: { from?: string; to?: string } | null = null
+    let reqIndex = 0
+
+    const finalizeRequirement = () => {
+      if (!currentOperation || !currentRequirement) return
+      const scenarios = currentRequirement.scenarios
+        .map((scenario) => {
+          const rawText = [scenario.title, ...scenario.lines].join('\n').trim()
+          return rawText ? { rawText } : null
+        })
+        .filter((s): s is { rawText: string } => Boolean(s))
+
+      const descriptionText = currentRequirement.descriptionLines
+        .map((l) => l.trim())
+        .filter(Boolean)
+        .join(' ')
+
+      const requirement: Requirement = {
+        id: `${deltaSpec.specId}-${currentOperation.toLowerCase()}-${++reqIndex}`,
+        text: descriptionText || currentRequirement.title,
+        scenarios,
+      }
+
+      deltas.push({
+        spec: deltaSpec.specId,
+        operation: currentOperation,
+        description: `${currentOperation} requirement: ${requirement.text}`,
+        requirement,
+        requirements: [requirement],
+      })
+    }
+
+    for (const rawLine of lines) {
+      const line = rawLine.trimEnd()
+
+      const opMatch = line.match(/^##\s+(ADDED|MODIFIED|REMOVED|RENAMED)\s+Requirements/i)
+      if (opMatch) {
+        finalizeRequirement()
+        currentRequirement = null
+        currentOperation = opMatch[1].toUpperCase() as DeltaOperation
+        renameBuffer = null
+        continue
+      }
+
+      if (currentOperation === 'RENAMED') {
+        const fromMatch = line.match(/FROM:\s*`?###\s*Requirement:\s*(.+?)`?$/i)
+        const toMatch = line.match(/TO:\s*`?###\s*Requirement:\s*(.+?)`?$/i)
+        if (fromMatch) {
+          renameBuffer = { ...(renameBuffer ?? {}), from: fromMatch[1].trim() }
+        }
+        if (toMatch) {
+          renameBuffer = { ...(renameBuffer ?? {}), to: toMatch[1].trim() }
+        }
+        if (renameBuffer?.from && renameBuffer?.to) {
+          deltas.push({
+            spec: deltaSpec.specId,
+            operation: 'RENAMED',
+            description: `Rename requirement from "${renameBuffer.from}" to "${renameBuffer.to}"`,
+            rename: { from: renameBuffer.from, to: renameBuffer.to },
+          })
+          renameBuffer = null
+        }
+        continue
+      }
+
+      const requirementMatch = line.match(/^###\s+Requirement:\s*(.+)$/)
+      if (requirementMatch) {
+        finalizeRequirement()
+        currentRequirement = {
+          title: requirementMatch[1].trim(),
+          descriptionLines: [],
+          scenarios: [],
+        }
+        continue
+      }
+
+      const scenarioMatch = line.match(/^####\s*Scenario:?\s*(.*)$/)
+      if (scenarioMatch && currentRequirement) {
+        const title = scenarioMatch[1].trim() || 'Scenario'
+        currentRequirement.scenarios.push({ title, lines: [] })
+        continue
+      }
+
+      if (currentRequirement) {
+        const activeScenario = currentRequirement.scenarios[currentRequirement.scenarios.length - 1]
+        if (activeScenario) {
+          activeScenario.lines.push(line)
+        } else {
+          currentRequirement.descriptionLines.push(line)
+        }
+      }
+    }
+
+    finalizeRequirement()
+
+    return deltas
   }
 
   /**

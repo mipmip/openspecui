@@ -12,6 +12,26 @@
 import { z } from 'zod'
 
 // =====================
+// Change File Schema
+// =====================
+
+/**
+ * File metadata for a change directory entry.
+ */
+export const ChangeFileSchema = z.object({
+  /** Path relative to the change root (e.g., "proposal.md" or "specs/auth/spec.md") */
+  path: z.string(),
+  /** Entry type */
+  type: z.enum(['file', 'directory']),
+  /** Optional file content for text files */
+  content: z.string().optional(),
+  /** Optional byte size for files */
+  size: z.number().optional(),
+})
+
+export type ChangeFile = z.infer<typeof ChangeFileSchema>
+
+// =====================
 // Requirement Schema
 // =====================
 
@@ -71,11 +91,13 @@ export type Spec = z.infer<typeof SpecSchema>
  * A delta describes changes to a spec within a change proposal.
  * Deltas track which specs are affected and how.
  */
+export const DeltaOperationType = z.enum(['ADDED', 'MODIFIED', 'REMOVED', 'RENAMED'])
+
 export const DeltaSchema = z.object({
   /** Target spec ID */
   spec: z.string(),
   /** Type of change */
-  operation: z.enum(['ADDED', 'MODIFIED', 'REMOVED', 'RENAMED']),
+  operation: DeltaOperationType,
   /** Human-readable description */
   description: z.string(),
   /** Single requirement change */
@@ -92,6 +114,7 @@ export const DeltaSchema = z.object({
 })
 
 export type Delta = z.infer<typeof DeltaSchema>
+export type DeltaOperation = z.infer<typeof DeltaOperationType>
 
 // =====================
 // Task Schema
@@ -113,6 +136,23 @@ export const TaskSchema = z.object({
 })
 
 export type Task = z.infer<typeof TaskSchema>
+
+// =====================
+// Delta Spec Schema
+// =====================
+
+/**
+ * A delta spec file from changes/{id}/specs/{specId}/spec.md
+ * Contains the proposed changes to a spec
+ */
+export const DeltaSpecSchema = z.object({
+  /** Spec ID (directory name under changes/{id}/specs/) */
+  specId: z.string(),
+  /** Raw markdown content of the delta spec */
+  content: z.string(),
+})
+
+export type DeltaSpec = z.infer<typeof DeltaSpecSchema>
 
 // =====================
 // Change Schema
@@ -143,6 +183,10 @@ export const ChangeSchema = z.object({
     total: z.number(),
     completed: z.number(),
   }),
+  /** Optional design.md content */
+  design: z.string().optional(),
+  /** Delta specs from changes/{id}/specs/ directory */
+  deltaSpecs: z.array(DeltaSpecSchema).optional(),
   /** Optional metadata */
   metadata: z
     .object({

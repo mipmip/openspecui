@@ -16,7 +16,7 @@ interface MarkdownContentProps {
  */
 export function MarkdownContent({ children, className = '', components }: MarkdownContentProps) {
   return (
-    <div className={`markdown-content ${className} scroll-smooth`}>
+    <div className={`markdown-content ${className}`}>
       <Markdown
         remarkPlugins={[remarkGfm]}
         components={{

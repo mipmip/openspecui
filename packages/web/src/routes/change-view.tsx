@@ -4,11 +4,11 @@ import { trpcClient } from '@/lib/trpc'
 import { useChangeSubscription } from '@/lib/use-subscription'
 import { useArchiveModal } from '@/lib/archive-modal-context'
 import { useParams, Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, Archive, AlertCircle } from 'lucide-react'
-import { MarkdownContent } from '@/components/markdown-content'
-import { MarkdownViewer } from '@/components/markdown-viewer'
-import { Toc, TocSection, type TocItem } from '@/components/toc'
-import { TasksView, useTaskGroups, buildTaskTocItems } from '@/components/tasks-view'
+import { ArrowLeft, Archive, AlertCircle, FileText, FolderTree, ListChecks } from 'lucide-react'
+import { TasksView } from '@/components/tasks-view'
+import { Tabs, type Tab } from '@/components/tabs'
+import { ChangeOverview } from '@/components/change-overview'
+import { FolderEditorViewer } from '@/components/folder-editor-viewer'
 
 export function ChangeView() {
   const { changeId } = useParams({ from: '/changes/$changeId' })
@@ -53,39 +53,43 @@ export function ChangeView() {
     ? toggleTaskMutation.variables?.taskIndex ?? null
     : null
 
-  // Group tasks by section - must be before any conditional returns
-  const taskGroups = useTaskGroups(change?.tasks ?? [])
-
-  // Build ToC items from change sections - must be before any conditional returns
-  const tocItems = useMemo<TocItem[]>(() => {
-    if (!change) return []
-
-    const items: TocItem[] = [
-      { id: 'why', label: 'Why', level: 1 },
-      { id: 'what-changes', label: 'What Changes', level: 1 },
-    ]
-
-    if (change.deltas.length > 0) {
-      items.push({ id: 'affected-specs', label: 'Affected Specs', level: 1 })
-    }
-
-    items.push({ id: 'tasks', label: 'Tasks', level: 1 })
-
-    // Add task sections to ToC
-    items.push(...buildTaskTocItems(taskGroups))
-
-    return items
-  }, [change, taskGroups])
-
   // 点击 Archive 按钮：打开全局 Modal
   const handleArchiveClick = useCallback(() => {
-    // 使用 ref 中保存的 changeName，确保即使 change 被删除也能正常显示
     openArchiveModal(changeId, lastChangeNameRef.current)
   }, [changeId, openArchiveModal])
 
-  // Calculate base index for TasksView ToC sections
-  // why(0) + what-changes(1) + affected-specs?(2) + tasks(3 or 2)
-  const tasksTocBaseIndex = change ? (change.deltas.length > 0 ? 3 : 2) : 0
+  const tabs: Tab[] = useMemo(() => {
+    if (!change) return []
+
+    return [
+      {
+        id: 'overview',
+        label: 'Overview',
+        icon: <FileText className="h-4 w-4" />,
+        content: <ChangeOverview change={change} />,
+      },
+      {
+        id: 'tasks',
+        label: `Tasks (${change.progress.completed}/${change.progress.total})`,
+        icon: <ListChecks className="h-4 w-4" />,
+        content: (
+          <TasksView
+            tasks={change.tasks}
+            progress={change.progress}
+            onToggleTask={handleToggleTask}
+            togglingIndex={togglingIndex}
+          />
+        ),
+      },
+      {
+        id: 'folder',
+        label: 'Folder',
+        icon: <FolderTree className="h-4 w-4" />,
+        content: <FolderEditorViewer changeId={changeId} />,
+        unmountOnHide: true,
+      },
+    ]
+  }, [change, changeId, handleToggleTask, togglingIndex])
 
   if (isLoading) {
     return <div className="animate-pulse">Loading change...</div>
@@ -135,63 +139,7 @@ export function ChangeView() {
         </div>
       )}
 
-      <MarkdownViewer
-        toc={<Toc items={tocItems} className="viewer-toc" />}
-        tocItems={tocItems}
-        className="min-h-0 flex-1"
-      >
-        <div className="space-y-6">
-          <TocSection id="why" index={0}>
-            <h2 className="text-lg font-semibold mb-2">Why</h2>
-            <div className="p-4 bg-muted/30 rounded-lg">
-              {change.why ? (
-                <MarkdownContent>{change.why}</MarkdownContent>
-              ) : (
-                <span className="text-muted-foreground">No description</span>
-              )}
-            </div>
-          </TocSection>
-
-          <TocSection id="what-changes" index={1}>
-            <h2 className="text-lg font-semibold mb-2">What Changes</h2>
-            <div className="p-4 bg-muted/30 rounded-lg">
-              {change.whatChanges ? (
-                <MarkdownContent>{change.whatChanges}</MarkdownContent>
-              ) : (
-                <span className="text-muted-foreground">No changes listed</span>
-              )}
-            </div>
-          </TocSection>
-
-          {change.deltas.length > 0 && (
-            <TocSection id="affected-specs" index={2}>
-              <h2 className="text-lg font-semibold mb-3">Affected Specs ({change.deltas.length})</h2>
-              <div className="border border-border rounded-lg divide-y divide-border">
-                {change.deltas.map((delta, i) => (
-                  <div key={i} className="p-3 flex items-center justify-between">
-                    <Link
-                      to="/specs/$specId"
-                      params={{ specId: delta.spec }}
-                      className="font-medium hover:underline"
-                    >
-                      {delta.spec}
-                    </Link>
-                    <span className="text-sm px-2 py-1 bg-muted rounded">{delta.operation}</span>
-                  </div>
-                ))}
-              </div>
-            </TocSection>
-          )}
-
-          <TasksView
-            tasks={change.tasks}
-            progress={change.progress}
-            onToggleTask={handleToggleTask}
-            togglingIndex={togglingIndex}
-            tocBaseIndex={tasksTocBaseIndex}
-          />
-        </div>
-      </MarkdownViewer>
+      <Tabs tabs={tabs} defaultTab={tabs[0]?.id} className="min-h-0 flex-1 gap-6" />
     </div>
   )
 }

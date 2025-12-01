@@ -1,11 +1,11 @@
 import { useMemo } from 'react'
 import { useArchiveSubscription } from '@/lib/use-subscription'
-import { getRouteApi } from '@tanstack/react-router'
-import { Archive, ArrowLeft, CheckCircle, FileText, ListTodo } from 'lucide-react'
-import { Link } from '@tanstack/react-router'
-import { MarkdownViewer } from '@/components/markdown-viewer'
+import { getRouteApi, Link } from '@tanstack/react-router'
+import { Archive, ArrowLeft, CheckCircle, FileText, FolderTree, ListChecks } from 'lucide-react'
 import { Tabs, type Tab } from '@/components/tabs'
 import { TasksView } from '@/components/tasks-view'
+import { ChangeOverview } from '@/components/change-overview'
+import { FolderEditorViewer } from '@/components/folder-editor-viewer'
 
 const route = getRouteApi('/archive/$changeId')
 
@@ -13,32 +13,24 @@ export function ArchiveView() {
   const { changeId } = route.useParams()
 
   const { data: change, isLoading } = useArchiveSubscription(changeId)
-  // TODO: raw 订阅暂未实现，后续可以添加
-  const raw = null as { proposal: string; tasks?: string } | null
 
   const tabs = useMemo<Tab[]>(() => {
+    if (!change) return []
+
     const result: Tab[] = [
       {
-        id: 'proposal',
-        label: 'proposal.md',
+        id: 'overview',
+        label: 'Overview',
         icon: <FileText className="w-4 h-4" />,
-        content: raw?.proposal ? (
-          <div className="h-full border border-border rounded-lg">
-            <MarkdownViewer markdown={raw.proposal} />
-          </div>
-        ) : (
-          <div className="p-8 text-center text-muted-foreground border border-border rounded-lg">
-            <p>proposal.md not found.</p>
-          </div>
-        ),
+        content: <ChangeOverview change={change} />,
       },
     ]
 
-    if (change?.tasks && change.tasks.length > 0) {
+    if (change.tasks.length > 0) {
       result.push({
         id: 'tasks',
-        label: 'Tasks',
-        icon: <ListTodo className="w-4 h-4" />,
+        label: `Tasks (${change.progress.completed}/${change.progress.total})`,
+        icon: <ListChecks className="w-4 h-4" />,
         content: (
           <div className="h-full border border-border rounded-lg p-4 overflow-auto">
             <TasksView tasks={change.tasks} progress={change.progress} readonly />
@@ -47,8 +39,16 @@ export function ArchiveView() {
       })
     }
 
+    result.push({
+      id: 'folder',
+      label: 'Folder',
+      icon: <FolderTree className="w-4 h-4" />,
+      content: <FolderEditorViewer changeId={changeId} archived />,
+      unmountOnHide: true,
+    })
+
     return result
-  }, [raw, change])
+  }, [change, changeId])
 
   if (isLoading) {
     return <div className="animate-pulse">Loading archived change...</div>
@@ -94,7 +94,7 @@ export function ArchiveView() {
       </div>
 
       {/* Tabs with Activity for state preservation */}
-      <Tabs tabs={tabs} defaultTab="proposal" />
+      <Tabs tabs={tabs} defaultTab={tabs[0]?.id} className="min-h-0 flex-1 gap-6"/>
     </div>
   )
 }

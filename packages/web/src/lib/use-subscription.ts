@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { trpcClient } from './trpc'
-import type { Spec, Change, SpecMeta, ChangeMeta, ArchiveMeta } from '@openspecui/core'
+import type { Spec, Change, SpecMeta, ChangeMeta, ArchiveMeta, ChangeFile } from '@openspecui/core'
 
 /** 订阅状态 */
 export interface SubscriptionState<T> {
@@ -184,6 +184,20 @@ export function useChangeSubscription(id: string): SubscriptionState<Change | nu
   )
 }
 
+export function useChangeFilesSubscription(id: string): SubscriptionState<ChangeFile[]> {
+  return useSubscription<ChangeFile[]>(
+    (callbacks) =>
+      trpcClient.change.subscribeFiles.subscribe(
+        { id },
+        {
+          onData: callbacks.onData,
+          onError: callbacks.onError,
+        }
+      ),
+    [id]
+  )
+}
+
 /** Change 原始文件内容 */
 export interface ChangeRaw {
   proposal: string
@@ -226,6 +240,20 @@ export function useArchiveSubscription(id: string): SubscriptionState<ArchivedCh
   return useSubscription<ArchivedChange | null>(
     (callbacks) =>
       trpcClient.archive.subscribeOne.subscribe(
+        { id },
+        {
+          onData: callbacks.onData,
+          onError: callbacks.onError,
+        }
+      ),
+    [id]
+  )
+}
+
+export function useArchiveFilesSubscription(id: string): SubscriptionState<ChangeFile[]> {
+  return useSubscription<ChangeFile[]>(
+    (callbacks) =>
+      trpcClient.archive.subscribeFiles.subscribe(
         { id },
         {
           onData: callbacks.onData,

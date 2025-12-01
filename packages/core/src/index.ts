@@ -23,11 +23,17 @@ export {
   ChangeSchema,
   RequirementSchema,
   DeltaSchema,
+  DeltaSpecSchema,
+  DeltaOperationType,
+  ChangeFileSchema,
   TaskSchema,
   type Spec,
   type Change,
   type Requirement,
   type Delta,
+  type DeltaOperation,
+  type DeltaSpec,
+  type ChangeFile,
   type Task,
 } from './schemas.js'
 

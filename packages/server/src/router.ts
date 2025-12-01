@@ -178,6 +178,14 @@ export const changeRouter = router({
       )
     }),
 
+  subscribeFiles: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .subscription(({ ctx, input }) => {
+      return createReactiveSubscriptionWithInput((id: string) =>
+        ctx.adapter.readChangeFiles(id)
+      )(input.id)
+    }),
+
   subscribeRaw: publicProcedure
     .input(z.object({ id: z.string() }))
     .subscription(({ ctx, input }) => {
@@ -386,6 +394,14 @@ export const archiveRouter = router({
     .subscription(({ ctx, input }) => {
       return createReactiveSubscriptionWithInput((id: string) =>
         ctx.adapter.readArchivedChange(id)
+      )(input.id)
+    }),
+
+  subscribeFiles: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .subscription(({ ctx, input }) => {
+      return createReactiveSubscriptionWithInput((id: string) =>
+        ctx.adapter.readArchivedChangeFiles(id)
       )(input.id)
     }),
 })

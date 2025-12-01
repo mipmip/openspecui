@@ -2,7 +2,7 @@ import { mkdir, writeFile, rename, readFile } from 'fs/promises'
 import { join } from 'path'
 import { MarkdownParser } from './parser.js'
 import { Validator, type ValidationResult } from './validator.js'
-import type { Spec, Change } from './schemas.js'
+import type { Spec, Change, DeltaSpec, ChangeFile } from './schemas.js'
 import { reactiveReadFile, reactiveReadDir, reactiveStat } from './reactive-fs/index.js'
 
 /** Spec metadata with time info */
@@ -235,23 +235,102 @@ export class OpenSpecAdapter {
     try {
       const raw = await this.readChangeRaw(changeId)
       if (!raw) return null
-      return this.parser.parseChange(changeId, raw.proposal, raw.tasks)
+      return this.parser.parseChange(changeId, raw.proposal, raw.tasks, {
+        design: raw.design,
+        deltaSpecs: raw.deltaSpecs,
+      })
     } catch {
       return null
     }
   }
 
-  async readChangeRaw(changeId: string): Promise<{ proposal: string; tasks: string } | null> {
-    const proposalPath = join(this.changesDir, changeId, 'proposal.md')
-    const tasksPath = join(this.changesDir, changeId, 'tasks.md')
+  async readChangeFiles(changeId: string): Promise<ChangeFile[]> {
+    const changeRoot = join(this.changesDir, changeId)
+    return this.readFilesUnderRoot(changeRoot)
+  }
 
-    const [proposal, tasks] = await Promise.all([
+  async readArchivedChangeFiles(changeId: string): Promise<ChangeFile[]> {
+    const archiveRoot = join(this.archiveDir, changeId)
+    return this.readFilesUnderRoot(archiveRoot)
+  }
+
+  private async readFilesUnderRoot(root: string): Promise<ChangeFile[]> {
+    const rootStat = await reactiveStat(root)
+    if (!rootStat?.isDirectory) return []
+
+    const entries = await this.collectChangeFiles(root, root)
+
+    return entries.sort((a, b) => {
+      if (a.type !== b.type) return a.type === 'directory' ? -1 : 1
+      return a.path.localeCompare(b.path)
+    })
+  }
+
+  private async collectChangeFiles(root: string, dir: string): Promise<ChangeFile[]> {
+    const names = await reactiveReadDir(dir, { includeHidden: false })
+    const files: ChangeFile[] = []
+
+    for (const name of names) {
+      const fullPath = join(dir, name)
+      const statInfo = await reactiveStat(fullPath)
+      if (!statInfo) continue
+
+      const relativePath = fullPath.slice(root.length + 1)
+
+      if (statInfo.isDirectory) {
+        files.push({ path: relativePath, type: 'directory' })
+        files.push(...(await this.collectChangeFiles(root, fullPath)))
+      } else {
+        const content = await reactiveReadFile(fullPath)
+        files.push({ path: relativePath, type: 'file', content: content ?? undefined })
+      }
+    }
+
+    return files
+  }
+
+  async readChangeRaw(
+    changeId: string
+  ): Promise<{ proposal: string; tasks: string; design?: string; deltaSpecs: DeltaSpec[] } | null> {
+    const changeDir = join(this.changesDir, changeId)
+    const proposalPath = join(changeDir, 'proposal.md')
+    const tasksPath = join(changeDir, 'tasks.md')
+    const designPath = join(changeDir, 'design.md')
+    const specsDir = join(changeDir, 'specs')
+
+    const [proposal, tasks, design] = await Promise.all([
       reactiveReadFile(proposalPath),
       reactiveReadFile(tasksPath),
+      reactiveReadFile(designPath),
     ])
 
     if (!proposal) return null
-    return { proposal, tasks: tasks ?? '' }
+
+    // Read delta specs from specs/ directory
+    const deltaSpecs = await this.readDeltaSpecs(specsDir)
+
+    return {
+      proposal,
+      tasks: tasks ?? '',
+      design: design ?? undefined,
+      deltaSpecs,
+    }
+  }
+
+  /** Read delta specs from a specs directory */
+  private async readDeltaSpecs(specsDir: string): Promise<DeltaSpec[]> {
+    const specIds = await reactiveReadDir(specsDir, { directoriesOnly: true })
+    const deltaSpecs: DeltaSpec[] = []
+
+    for (const specId of specIds) {
+      const specPath = join(specsDir, specId, 'spec.md')
+      const content = await reactiveReadFile(specPath)
+      if (content) {
+        deltaSpecs.push({ specId, content })
+      }
+    }
+
+    return deltaSpecs
   }
 
   /**
@@ -261,7 +340,10 @@ export class OpenSpecAdapter {
     try {
       const raw = await this.readArchivedChangeRaw(changeId)
       if (!raw) return null
-      return this.parser.parseChange(changeId, raw.proposal, raw.tasks)
+      return this.parser.parseChange(changeId, raw.proposal, raw.tasks, {
+        design: raw.design,
+        deltaSpecs: raw.deltaSpecs,
+      })
     } catch {
       return null
     }
@@ -270,17 +352,32 @@ export class OpenSpecAdapter {
   /**
    * Read raw archived change files (reactive)
    */
-  async readArchivedChangeRaw(changeId: string): Promise<{ proposal: string; tasks: string } | null> {
-    const proposalPath = join(this.archiveDir, changeId, 'proposal.md')
-    const tasksPath = join(this.archiveDir, changeId, 'tasks.md')
+  async readArchivedChangeRaw(
+    changeId: string
+  ): Promise<{ proposal: string; tasks: string; design?: string; deltaSpecs: DeltaSpec[] } | null> {
+    const archiveChangeDir = join(this.archiveDir, changeId)
+    const proposalPath = join(archiveChangeDir, 'proposal.md')
+    const tasksPath = join(archiveChangeDir, 'tasks.md')
+    const designPath = join(archiveChangeDir, 'design.md')
+    const specsDir = join(archiveChangeDir, 'specs')
 
-    const [proposal, tasks] = await Promise.all([
+    const [proposal, tasks, design] = await Promise.all([
       reactiveReadFile(proposalPath),
       reactiveReadFile(tasksPath),
+      reactiveReadFile(designPath),
     ])
 
     if (!proposal) return null
-    return { proposal, tasks: tasks ?? '' }
+
+    // Read delta specs from specs/ directory
+    const deltaSpecs = await this.readDeltaSpecs(specsDir)
+
+    return {
+      proposal,
+      tasks: tasks ?? '',
+      design: design ?? undefined,
+      deltaSpecs,
+    }
   }
 
   // =====================
