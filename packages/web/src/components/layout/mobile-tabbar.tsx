@@ -11,8 +11,8 @@ export function MobileTabBar() {
           to={item.to}
           className="flex-1 flex flex-col items-center justify-center gap-0.5 text-muted-foreground hover:text-foreground [&.active]:text-primary"
         >
-          <item.icon className="w-5 h-5" />
-          <span className="text-[10px]">{item.label}</span>
+          <item.icon className="w-5 h-5 shrink-0" />
+          <span className="text-[10px] font-nav tracking-[0.03em]">{item.label}</span>
         </Link>
       ))}
     </nav>

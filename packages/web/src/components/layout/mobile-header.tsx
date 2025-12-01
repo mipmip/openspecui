@@ -1,8 +1,8 @@
-import { useState } from 'react'
-import { Link, useRouterState } from '@tanstack/react-router'
-import { Menu, X } from 'lucide-react'
 import { useDarkMode } from '@/lib/use-dark-mode'
 import { useServerStatus } from '@/lib/use-server-status'
+import { Link } from '@tanstack/react-router'
+import { Menu, X } from 'lucide-react'
+import { useState } from 'react'
 import { navItems, settingsItem } from './nav-items'
 import { StatusIndicator } from './status-bar'
 
@@ -10,29 +10,21 @@ import { StatusIndicator } from './status-bar'
 export function MobileHeader() {
   const [menuOpen, setMenuOpen] = useState(false)
   const isDark = useDarkMode()
-  const routerState = useRouterState()
-  const currentPath = routerState.location.pathname
   const serverStatus = useServerStatus()
-
-  // Find current page title, fallback to dirName (project folder name)
-  const currentItem = navItems.find((item) => {
-    if (item.to === '/') return currentPath === '/'
-    return currentPath.startsWith(item.to)
-  })
-  const pageTitle = currentItem?.label ?? serverStatus.dirName ?? 'OpenSpec'
+  const pageTitle = serverStatus.dirName ?? 'OpenSpec'
 
   return (
     <>
-      <header className="mobile-header h-12 border-b border-border bg-background px-4 flex items-center justify-between">
+      <header className="mobile-header border-border bg-background flex h-12 items-center justify-between border-b px-4">
         <div className="flex items-center gap-3">
           <button
             onClick={() => setMenuOpen(true)}
-            className="p-1.5 -ml-1.5 hover:bg-muted rounded-md"
+            className="hover:bg-muted -ml-1.5 rounded-md p-1.5"
             aria-label="Open menu"
           >
-            <Menu className="w-5 h-5" />
+            <Menu className="h-5 w-5" />
           </button>
-          <span className="font-semibold">{pageTitle}</span>
+          <span className="font-nav text-[12px] tracking-[0.04em]">{pageTitle}</span>
         </div>
         <StatusIndicator />
       </header>
@@ -41,11 +33,11 @@ export function MobileHeader() {
       {menuOpen && (
         <div className="fixed inset-0 z-50 flex">
           <div
-            className="absolute inset-0 bg-black/50 animate-in fade-in duration-200"
+            className="animate-in fade-in absolute inset-0 bg-black/50 duration-200"
             onClick={() => setMenuOpen(false)}
           />
-          <nav className="relative w-64 max-w-[80vw] bg-background border-r border-border p-4 flex flex-col animate-in slide-in-from-left duration-200">
-            <div className="flex items-center justify-between mb-6">
+          <nav className="bg-background border-border animate-in slide-in-from-left relative flex w-64 max-w-[80vw] flex-col border-r p-4 duration-200">
+            <div className="mb-6 flex items-center justify-between">
               <img
                 src={isDark ? '/openspec_pixel_dark.svg' : '/openspec_pixel_light.svg'}
                 alt="OpenSpec"
@@ -53,34 +45,38 @@ export function MobileHeader() {
               />
               <button
                 onClick={() => setMenuOpen(false)}
-                className="p-1.5 hover:bg-muted rounded-md"
+                className="hover:bg-muted rounded-md p-1.5"
                 aria-label="Close menu"
               >
-                <X className="w-5 h-5" />
+                <X className="h-5 w-5" />
               </button>
             </div>
-            <ul className="space-y-1 flex-1">
+            <ul className="flex-1 space-y-1">
               {navItems.map((item) => (
                 <li key={item.to}>
                   <Link
                     to={item.to}
                     onClick={() => setMenuOpen(false)}
-                    className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-muted [&.active]:bg-primary [&.active]:text-primary-foreground"
+                    className="hover:bg-muted [&.active]:bg-primary [&.active]:text-primary-foreground flex items-center gap-2 rounded-md px-3 py-2"
                   >
-                    <item.icon className="w-4 h-4" />
-                    {item.label}
+                    <item.icon className="h-4 w-4 shrink-0" />
+                    <span className="text-[12px] font-nav tracking-[0.04em]">
+                      {item.label}
+                    </span>
                   </Link>
                 </li>
               ))}
             </ul>
-            <div className="pt-4 border-t border-border">
+            <div className="border-border border-t pt-4">
               <Link
                 to={settingsItem.to}
                 onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-muted [&.active]:bg-primary [&.active]:text-primary-foreground"
+                className="hover:bg-muted [&.active]:bg-primary [&.active]:text-primary-foreground flex items-center gap-2 rounded-md px-3 py-2"
               >
-                <settingsItem.icon className="w-4 h-4" />
-                {settingsItem.label}
+                <settingsItem.icon className="h-4 w-4 shrink-0" />
+                <span className="font-nav text-[12px] tracking-[0.04em]">
+                  {settingsItem.label}
+                </span>
               </Link>
             </div>
           </nav>

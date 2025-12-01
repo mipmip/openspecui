@@ -12,7 +12,10 @@ export function SpecList() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Specifications</h1>
+      <h1 className="flex items-center gap-2 text-2xl font-bold font-nav">
+        <FileText className="h-6 w-6 shrink-0" />
+        Specifications
+      </h1>
 
       <div className="border border-border rounded-lg divide-y divide-border">
         {specs?.map((spec) => (

@@ -1,7 +1,7 @@
 import { MarkdownViewer } from '@/components/markdown-viewer'
 import { useSpecSubscription } from '@/lib/use-subscription'
 import { Link, useParams } from '@tanstack/react-router'
-import { AlertCircle, AlertTriangle, ArrowLeft, CheckCircle, Info } from 'lucide-react'
+import { AlertCircle, AlertTriangle, ArrowLeft, CheckCircle, FileText, Info } from 'lucide-react'
 
 export function SpecView() {
   const { specId } = useParams({ from: '/specs/$specId' })
@@ -28,7 +28,10 @@ export function SpecView() {
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold">{spec.name}</h1>
+          <h1 className="flex items-center gap-2 text-2xl font-bold font-nav">
+            <FileText className="h-6 w-6 shrink-0" />
+            {spec.name}
+          </h1>
           <p className="text-muted-foreground">ID: {spec.id}</p>
         </div>
       </div>

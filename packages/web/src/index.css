@@ -34,9 +34,10 @@
   --sidebar-accent-foreground: oklch(1 0 0);
   --sidebar-border: oklch(0 0 0);
   --sidebar-ring: oklch(0.6489 0.237 26.9728);
-  --font-sans: DM Sans, sans-serif;
+  --font-sans: 'JetBrains Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
   --font-serif: ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
-  --font-mono: Space Mono, monospace;
+  --font-mono: 'JetBrains Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+  --font-nav: 'Share Tech Mono', 'JetBrains Mono', SFMono-Regular, monospace;
   --radius: 0px;
   --shadow-x: 4px;
   --shadow-y: 4px;
@@ -89,9 +90,10 @@
   --sidebar-accent-foreground: oklch(0 0 0);
   --sidebar-border: oklch(1 0 0);
   --sidebar-ring: oklch(0.7044 0.1872 23.1858);
-  --font-sans: DM Sans, sans-serif;
+  --font-sans: 'JetBrains Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
   --font-serif: ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
-  --font-mono: Space Mono, monospace;
+  --font-mono: 'JetBrains Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+  --font-nav: 'Share Tech Mono', 'JetBrains Mono', SFMono-Regular, monospace;
   --radius: 0px;
   --shadow-x: 4px;
   --shadow-y: 4px;
@@ -146,6 +148,7 @@
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
   --font-serif: var(--font-serif);
+  --font-nav: var(--font-nav);
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -169,10 +172,14 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
-    font-family:
-      system-ui,
-      -apple-system,
-      sans-serif;
+    font-family: var(--font-mono);
+  }
+
+  .font-nav {
+    font-family: var(--font-nav);
+  }
+  button {
+    cursor: pointer;
   }
 }
 

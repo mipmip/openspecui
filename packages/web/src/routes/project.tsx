@@ -1,9 +1,10 @@
-import { Activity, useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
-import { trpcClient } from '@/lib/trpc'
-import { useProjectMdSubscription, useAgentsMdSubscription } from '@/lib/use-subscription'
-import { FileText, Bot, Save, X, Edit2 } from 'lucide-react'
+import { CodeEditor } from '@/components/code-editor'
 import { MarkdownViewer } from '@/components/markdown-viewer'
+import { trpcClient } from '@/lib/trpc'
+import { useAgentsMdSubscription, useProjectMdSubscription } from '@/lib/use-subscription'
+import { useMutation } from '@tanstack/react-query'
+import { Bot, Edit2, FileText, Folder, Save, X } from 'lucide-react'
+import { Activity, useState } from 'react'
 
 type ActiveTab = 'project' | 'agents'
 
@@ -50,8 +51,8 @@ export function Project() {
   }
 
   const tabs: { id: ActiveTab; label: string; icon: React.ReactNode }[] = [
-    { id: 'project', label: 'project.md', icon: <FileText className="w-4 h-4" /> },
-    { id: 'agents', label: 'AGENTS.md', icon: <Bot className="w-4 h-4" /> },
+    { id: 'project', label: 'project.md', icon: <FileText className="h-4 w-4" /> },
+    { id: 'agents', label: 'AGENTS.md', icon: <Bot className="h-4 w-4" /> },
   ]
 
   const descriptions: Record<ActiveTab, React.ReactNode> = {
@@ -72,11 +73,14 @@ export function Project() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Project</h1>
+        <h1 className="flex items-center gap-2 text-2xl font-bold font-nav">
+          <Folder className="h-6 w-6 shrink-0" />
+          Project
+        </h1>
         {!isEditing && currentContent && (
           <button
             onClick={handleEdit}
-            className="border-border flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
+            className="border-border hover:bg-muted flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm"
           >
             <Edit2 className="h-4 w-4" />
             Edit
@@ -204,7 +208,7 @@ function TabContent({
           <div className="flex gap-2">
             <button
               onClick={onCancel}
-              className="border-border flex items-center gap-1 rounded border px-3 py-1 text-sm hover:bg-muted"
+              className="border-border hover:bg-muted flex items-center gap-1 rounded border px-3 py-1 text-sm"
             >
               <X className="h-3 w-3" />
               Cancel
@@ -219,15 +223,16 @@ function TabContent({
             </button>
           </div>
         </div>
-        <textarea
+        <CodeEditor
           value={editContent}
-          onChange={(e) => setEditContent(e.target.value)}
-          className="bg-background flex-1 resize-none p-4 font-mono text-sm focus:outline-none"
-          spellCheck={false}
+          onChange={setEditContent}
+          filename={tabName}
+          className="min-h-0 flex-1"
         />
       </div>
     )
   }
 
+  // 只读模式：使用 CodeEditor 的只读预览
   return <MarkdownViewer markdown={content} />
 }

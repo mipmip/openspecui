@@ -75,12 +75,12 @@ export function ArchiveView() {
         >
           <ArrowLeft className="w-5 h-5" />
         </Link>
-        <div className="flex items-center gap-3">
-          <Archive className="w-6 h-6 text-muted-foreground" />
-          <div>
-            <h1 className="text-2xl font-bold">{change.name}</h1>
-            <p className="text-sm text-muted-foreground">{changeId}</p>
-          </div>
+        <div>
+          <h1 className="flex items-center gap-2 text-2xl font-bold font-nav">
+            <Archive className="h-6 w-6 shrink-0" />
+            {change.name}
+          </h1>
+          <p className="text-sm text-muted-foreground">{changeId}</p>
         </div>
       </div>
 

@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Link } from '@tanstack/react-router'
-import { FileText, GitBranch, CheckCircle, AlertCircle, Archive } from 'lucide-react'
+import { FileText, GitBranch, CheckCircle, AlertCircle, Archive, LayoutDashboard } from 'lucide-react'
 import { useDashboardSubscription, useInitializedSubscription } from '@/lib/use-subscription'
 
 export function Dashboard() {
@@ -29,7 +29,10 @@ export function Dashboard() {
   if (!initialized) {
     return (
       <div className="text-center py-12">
-        <h2 className="text-2xl font-bold mb-4">OpenSpec Not Initialized</h2>
+        <h2 className="mb-4 flex items-center justify-center gap-2 text-2xl font-bold font-nav">
+          <LayoutDashboard className="h-6 w-6 shrink-0" />
+          OpenSpec Not Initialized
+        </h2>
         <p className="text-muted-foreground mb-6">
           This project doesn't have an OpenSpec directory yet.
         </p>
@@ -47,7 +50,10 @@ export function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Dashboard</h1>
+      <h1 className="flex items-center gap-2 text-2xl font-bold font-nav">
+        <LayoutDashboard className="h-6 w-6 shrink-0" />
+        Dashboard
+      </h1>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

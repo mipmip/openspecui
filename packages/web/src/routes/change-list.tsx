@@ -12,7 +12,10 @@ export function ChangeList() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Changes</h1>
+      <h1 className="flex items-center gap-2 text-2xl font-bold font-nav">
+        <GitBranch className="h-6 w-6 shrink-0" />
+        Changes
+      </h1>
 
       <p className="text-muted-foreground">
         Active change proposals. Completed changes are moved to{' '}

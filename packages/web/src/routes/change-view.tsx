@@ -1,14 +1,22 @@
-import { useCallback, useMemo, useEffect, useRef } from 'react'
-import { useMutation } from '@tanstack/react-query'
-import { trpcClient } from '@/lib/trpc'
-import { useChangeSubscription } from '@/lib/use-subscription'
-import { useArchiveModal } from '@/lib/archive-modal-context'
-import { useParams, Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, Archive, AlertCircle, FileText, FolderTree, ListChecks } from 'lucide-react'
-import { TasksView } from '@/components/tasks-view'
-import { Tabs, type Tab } from '@/components/tabs'
 import { ChangeOverview } from '@/components/change-overview'
 import { FolderEditorViewer } from '@/components/folder-editor-viewer'
+import { Tabs, type Tab } from '@/components/tabs'
+import { TasksView } from '@/components/tasks-view'
+import { useArchiveModal } from '@/lib/archive-modal-context'
+import { trpcClient } from '@/lib/trpc'
+import { useChangeSubscription } from '@/lib/use-subscription'
+import { useMutation } from '@tanstack/react-query'
+import { Link, useNavigate, useParams } from '@tanstack/react-router'
+import {
+  AlertCircle,
+  Archive,
+  ArrowLeft,
+  FileText,
+  FolderTree,
+  GitBranch,
+  ListChecks,
+} from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 export function ChangeView() {
   const { changeId } = useParams({ from: '/changes/$changeId' })
@@ -30,7 +38,10 @@ export function ChangeView() {
     }
   }, [isLoading, change, archiveModalState.open, navigate])
   // TODO: validation 暂时不支持订阅，后续可以添加
-  const validation = null as { valid: boolean; issues: Array<{ severity: string; message: string; path?: string }> } | null
+  const validation = null as {
+    valid: boolean
+    issues: Array<{ severity: string; message: string; path?: string }>
+  } | null
 
   const toggleTaskMutation = useMutation({
     mutationFn: (params: { taskIndex: number; completed: boolean }) =>
@@ -50,7 +61,7 @@ export function ChangeView() {
   )
 
   const togglingIndex = toggleTaskMutation.isPending
-    ? toggleTaskMutation.variables?.taskIndex ?? null
+    ? (toggleTaskMutation.variables?.taskIndex ?? null)
     : null
 
   // 点击 Archive 按钮：打开全局 Modal
@@ -102,33 +113,36 @@ export function ChangeView() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6">
-      <div className="flex items-center justify-between">
+      <div className="change-header @container flex items-center justify-between gap-3">
         <div className="flex items-center gap-4">
-          <Link to="/changes" className="p-2 hover:bg-muted rounded-md">
-            <ArrowLeft className="w-5 h-5" />
+          <Link to="/changes" className="hover:bg-muted rounded-md p-2">
+            <ArrowLeft className="h-5 w-5" />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold">{change.name}</h1>
+            <h1 className="flex items-center gap-2 text-2xl font-bold font-nav">
+              <GitBranch className="h-6 w-6 shrink-0" />
+              {change.name}
+            </h1>
             <p className="text-muted-foreground">ID: {change.id}</p>
           </div>
         </div>
 
         <button
           onClick={handleArchiveClick}
-          className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md"
+          className="change-archive-button @sm:gap-2 @sm:px-4 flex h-10 items-center gap-1.5 rounded-md bg-red-600 px-3 py-2 text-white hover:bg-red-700"
         >
-          <Archive className="w-4 h-4" />
-          Archive
+          <Archive className="h-4 w-4" />
+          <span className="change-archive-text @sm:inline hidden">Archive</span>
         </button>
       </div>
 
       {validation && !validation.valid && (
-        <div className="border border-red-500 bg-red-500/10 rounded-lg p-4">
-          <div className="flex items-center gap-2 text-red-600 font-medium mb-2">
-            <AlertCircle className="w-5 h-5" />
+        <div className="rounded-lg border border-red-500 bg-red-500/10 p-4">
+          <div className="mb-2 flex items-center gap-2 font-medium text-red-600">
+            <AlertCircle className="h-5 w-5" />
             Validation Issues
           </div>
-          <ul className="text-sm space-y-1">
+          <ul className="space-y-1 text-sm">
             {validation.issues.map((issue, i) => (
               <li key={i} className="text-red-600">
                 {issue.message}

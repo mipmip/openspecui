@@ -480,12 +480,31 @@ path-marquee需要改进一下，它居然耦合的copy功能。
 
 ---
 
-我发现project.tsx是自己维护了Tabs的逻辑，为什么，它有什么特殊性吗？还有什么地方也是存在这样的特殊性？
+我发现project.tsx是自己维护了Tabs的逻辑，为什么不用我们统一封装的tabs组件，它有什么特殊需求吗？
+还有什么地方也是存在这样的特殊性？
 你有什么建议吗？
 
 ---
 
 Change详情页面的顶部的header，使用容器查询来优化样式：在空间比较不够的时候，Archive按钮简化成只有Icon，不显示文字。
+
+---
+
+我们整个网站的是面向开发者的，因此默认使用monospace 字体。请你给我一些字体上的建议，我想对于到导航相关的字体（和openspec品牌相关的）使用像素字体。你有什么建议吗？
+
+---
+
+请你帮我优化字体，默认使用google font字体。
+注意，我们整个架构是编译成静态文件，然后通过server服务来启动前端的。
+我的要求是，如果识别到用户的第一语言使用的是中文，那么将html只的google-fonts-cdn换成中文源。
+我比如说：
+```html
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+```
+这里的`fonts.googleapis.com`和`fonts.gstatic.com`统一改成`fonts.googleapis.cn`和`fonts.gstatic.cn`
+
 
 ---
 

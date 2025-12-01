@@ -4,7 +4,23 @@ import { trpc, trpcClient } from '@/lib/trpc'
 import { getApiBaseUrl } from '@/lib/api-config'
 import { useConfigSubscription, useConfiguredToolsSubscription } from '@/lib/use-subscription'
 import { useServerStatus } from '@/lib/use-server-status'
-import { Sun, Moon, Monitor, Wifi, WifiOff, FolderPlus, Terminal, CheckCircle, XCircle, Check, Loader2, FolderOpen, Download, ArrowUp } from 'lucide-react'
+import {
+  Sun,
+  Moon,
+  Monitor,
+  Wifi,
+  WifiOff,
+  FolderPlus,
+  Terminal,
+  CheckCircle,
+  XCircle,
+  Check,
+  Loader2,
+  FolderOpen,
+  Download,
+  ArrowUp,
+  Settings as SettingsIcon,
+} from 'lucide-react'
 import { CliTerminalModal } from '@/components/cli-terminal-modal'
 import { CopyablePath } from '@/components/copyable-path'
 
@@ -168,7 +184,10 @@ export function Settings() {
 
   return (
     <div className="space-y-8 max-w-2xl">
-      <h1 className="text-2xl font-bold">Settings</h1>
+      <h1 className="flex items-center gap-2 text-2xl font-bold font-nav">
+        <SettingsIcon className="h-6 w-6 shrink-0" />
+        Settings
+      </h1>
 
       {/* Theme */}
       <section className="space-y-4">

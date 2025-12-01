@@ -1,5 +1,5 @@
-import { Link } from '@tanstack/react-router'
 import { useDarkMode } from '@/lib/use-dark-mode'
+import { Link } from '@tanstack/react-router'
 import { navItems, settingsItem } from './nav-items'
 
 /** Desktop sidebar navigation */
@@ -7,7 +7,7 @@ export function DesktopSidebar() {
   const isDark = useDarkMode()
 
   return (
-    <nav className="desktop-sidebar w-64 border-r border-border bg-muted/30 p-4 flex flex-col shrink-0">
+    <nav className="desktop-sidebar border-border bg-muted/30 flex w-64 shrink-0 flex-col border-r p-4">
       <div className="mb-6">
         <img
           src={isDark ? '/openspec_pixel_dark.svg' : '/openspec_pixel_light.svg'}
@@ -15,26 +15,26 @@ export function DesktopSidebar() {
           className="h-6"
         />
       </div>
-      <ul className="space-y-1 flex-1">
+      <ul className="flex-1 space-y-1">
         {navItems.map((item) => (
           <li key={item.to}>
             <Link
               to={item.to}
-              className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-muted [&.active]:bg-primary [&.active]:text-primary-foreground"
+              className="hover:bg-muted [&.active]:bg-primary [&.active]:text-primary-foreground flex items-center gap-2 rounded-md px-3 py-2"
             >
-              <item.icon className="w-4 h-4" />
-              {item.label}
+              <item.icon className="h-4 w-4 shrink-0" />
+              <span className="font-nav text-base tracking-[0.04em]">{item.label}</span>
             </Link>
           </li>
         ))}
       </ul>
-      <div className="pt-4 border-t border-border">
+      <div className="border-border border-t pt-4">
         <Link
           to={settingsItem.to}
-          className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-muted [&.active]:bg-primary [&.active]:text-primary-foreground"
+          className="hover:bg-muted [&.active]:bg-primary [&.active]:text-primary-foreground flex items-center gap-2 rounded-md px-3 py-2"
         >
-          <settingsItem.icon className="w-4 h-4" />
-          {settingsItem.label}
+          <settingsItem.icon className="h-4 w-4 shrink-0" />
+          <span className="font-nav text-base tracking-[0.04em]">{settingsItem.label}</span>
         </Link>
       </div>
     </nav>

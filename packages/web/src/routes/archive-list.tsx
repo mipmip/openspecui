@@ -12,10 +12,10 @@ export function ArchiveList() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Archive className="w-6 h-6" />
-        <h1 className="text-2xl font-bold">Archive</h1>
-      </div>
+      <h1 className="flex items-center gap-2 text-2xl font-bold font-nav">
+        <Archive className="h-6 w-6 shrink-0" />
+        Archive
+      </h1>
 
       <p className="text-muted-foreground">
         Completed changes that have been archived after implementation.

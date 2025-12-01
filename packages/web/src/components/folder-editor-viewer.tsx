@@ -1,29 +1,7 @@
-import { markdownPreview } from '@/lib/codemirror-markdown-preview'
+import { CodeEditor } from '@/components/code-editor'
 import { useArchiveFilesSubscription, useChangeFilesSubscription } from '@/lib/use-subscription'
-import { javascript } from '@codemirror/lang-javascript'
-import { json } from '@codemirror/lang-json'
-import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
-import { yaml } from '@codemirror/lang-yaml'
-import { languages } from '@codemirror/language-data'
-import type { Extension } from '@codemirror/state'
-import { EditorView } from '@codemirror/view'
-import CodeMirror from '@uiw/react-codemirror'
 import { ChevronRight, File, FileText, Folder, Loader2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-
-/** 根据文件路径返回对应的 CodeMirror 语言扩展 */
-function getLanguageExtension(path: string | null): Extension[] {
-  if (!path) return []
-  if (path.endsWith('.md'))
-    return [markdown({ base: markdownLanguage, codeLanguages: languages }), markdownPreview()]
-  if (path.endsWith('.ts') || path.endsWith('.tsx'))
-    return [javascript({ typescript: true, jsx: path.endsWith('.tsx') })]
-  if (path.endsWith('.js') || path.endsWith('.jsx'))
-    return [javascript({ jsx: path.endsWith('.jsx') })]
-  if (path.endsWith('.json')) return [json()]
-  if (path.endsWith('.yml') || path.endsWith('.yaml')) return [yaml()]
-  return []
-}
 
 /**
  * 排序文件条目，确保子项紧跟在父目录后面
@@ -413,19 +391,12 @@ export function FolderEditorViewer({
                 entries={sortedEntries}
                 onNavigate={setSelectedPath}
               />
-              <CodeMirror
-                className="scrollbar-thin scrollbar-track-transparent **:[.cm-line]:leading-6 min-h-0 flex-1 overflow-auto *:bg-sky-50"
+              <CodeEditor
                 key={activeFile.path}
                 value={activeFile.content ?? ''}
+                filename={activeFile.path}
                 readOnly
-                editable={false}
-                basicSetup={{
-                  lineNumbers: true,
-                  foldGutter: false,
-                  highlightActiveLine: false,
-                }}
-                extensions={[...getLanguageExtension(activeFile.path), EditorView.lineWrapping]}
-                style={{ fontSize: 13, lineHeight: 21 }}
+                className="min-h-0 flex-1"
               />
             </>
           ) : (
