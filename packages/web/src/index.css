@@ -183,6 +183,57 @@
   }
 }
 
+.view-transition-route {
+  view-transition-name: route;
+  contain: paint;
+  position: relative;
+}
+
+.route-loading {
+  view-transition-name: none;
+}
+
+html[data-vt-running] .route-loading {
+  display: none !important;
+}
+
+@keyframes route-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes route-fade-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+::view-transition-old(route) {
+  animation: route-fade-out 260ms ease;
+}
+
+::view-transition-new(route) {
+  animation: route-fade-in 320ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(route),
+  ::view-transition-new(route) {
+    animation: none;
+  }
+}
+
 /* Custom scrollbar */
 .scrollbar-thin {
   scrollbar-width: thin;
@@ -195,80 +246,85 @@
 }
 
 /* Markdown content styling */
-.markdown-content {
-  color: var(--foreground);
-  line-height: 1.7;
-}
-.markdown-content h1 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin-top: 1.5rem;
-  margin-bottom: 0.75rem;
-}
-.markdown-content h2 {
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin-top: 1.25rem;
-  margin-bottom: 0.5rem;
-}
-.markdown-content h3 {
-  font-size: 1.125rem;
-  font-weight: 600;
-  margin-top: 1rem;
-  margin-bottom: 0.5rem;
-}
-.markdown-content p {
-  margin-bottom: 0.75rem;
-}
-.markdown-content ul,
-.markdown-content ol {
-  margin-bottom: 0.75rem;
-  padding-left: 1.5rem;
-}
-.markdown-content ul {
-  list-style-type: disc;
-}
-.markdown-content ol {
-  list-style-type: decimal;
-}
-.markdown-content li {
-  margin-bottom: 0.25rem;
-}
-.markdown-content a {
-  color: var(--primary);
-  text-decoration: underline;
-}
-.markdown-content a:hover {
-  opacity: 0.8;
-}
-.markdown-content blockquote {
-  border-left: 3px solid var(--border);
-  padding-left: 1rem;
-  margin: 1rem 0;
-  color: var(--muted-foreground);
-}
-.markdown-content hr {
-  border: none;
-  border-top: 1px solid var(--border);
-  margin: 1.5rem 0;
-}
-.markdown-content table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 1rem 0;
-}
-.markdown-content th,
-.markdown-content td {
-  border: 1px solid var(--border);
-  padding: 0.5rem 0.75rem;
-  text-align: left;
-}
-.markdown-content th {
-  background: var(--muted);
-  font-weight: 600;
-}
-.markdown-content strong {
-  font-weight: 600;
+@layer base {
+  .markdown-content {
+    color: var(--foreground);
+    line-height: 1.7;
+  }
+  .markdown-content h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+  }
+  .markdown-content h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-top: 1.25rem;
+    margin-bottom: 0.5rem;
+  }
+  .markdown-content h3 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+  }
+  :where(.markdown-content, .markdown-section) > :first-child:is(h1, h2, h3, h4, h5, h6) {
+    margin-top: 0;
+  }
+  .markdown-content p {
+    margin-bottom: 0.75rem;
+  }
+  .markdown-content ul,
+  .markdown-content ol {
+    margin-bottom: 0.75rem;
+    padding-left: 1.5rem;
+  }
+  .markdown-content ul {
+    list-style-type: disc;
+  }
+  .markdown-content ol {
+    list-style-type: decimal;
+  }
+  .markdown-content li {
+    margin-bottom: 0.25rem;
+  }
+  .markdown-content a {
+    color: var(--primary);
+    text-decoration: underline;
+  }
+  .markdown-content a:hover {
+    opacity: 0.8;
+  }
+  .markdown-content blockquote {
+    border-left: 3px solid var(--border);
+    padding-left: 1rem;
+    margin: 1rem 0;
+    color: var(--muted-foreground);
+  }
+  .markdown-content hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 1.5rem 0;
+  }
+  .markdown-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+  }
+  .markdown-content th,
+  .markdown-content td {
+    border: 1px solid var(--border);
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+  }
+  .markdown-content th {
+    background: var(--muted);
+    font-weight: 600;
+  }
+  .markdown-content strong {
+    font-weight: 600;
+  }
 }
 
 /* Shiki dual theme support */

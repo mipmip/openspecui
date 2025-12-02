@@ -1,18 +1,25 @@
-import { useArchivesSubscription } from '@/lib/use-subscription'
 import { formatRelativeTime } from '@/lib/format-time'
+import { useArchivesSubscription } from '@/lib/use-subscription'
 import { Link } from '@tanstack/react-router'
 import { Archive, ChevronRight } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 export function ArchiveList() {
   const { data: archived, isLoading } = useArchivesSubscription()
 
-  if (isLoading) {
-    return <div className="animate-pulse">Loading archived changes...</div>
+  const [firstFrameLoading, setFirstFrameLoading] = useState(true)
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setFirstFrameLoading(false))
+    return () => cancelAnimationFrame(id)
+  }, [])
+
+  if (firstFrameLoading || (isLoading && !archived)) {
+    return <div className="route-loading animate-pulse">Loading archived changes...</div>
   }
 
   return (
     <div className="space-y-6">
-      <h1 className="flex items-center gap-2 text-2xl font-bold font-nav">
+      <h1 className="font-nav flex items-center gap-2 text-2xl font-bold">
         <Archive className="h-6 w-6 shrink-0" />
         Archive
       </h1>
@@ -21,34 +28,34 @@ export function ArchiveList() {
         Completed changes that have been archived after implementation.
       </p>
 
-      <div className="border border-border rounded-lg divide-y divide-border">
+      <div className="border-border divide-border divide-y rounded-lg border">
         {archived?.map((change) => (
           <Link
             key={change.id}
             to="/archive/$changeId"
             params={{ changeId: change.id }}
-            className="flex items-center justify-between p-4 hover:bg-muted/50"
+            className="hover:bg-muted/50 flex items-center justify-between p-4"
           >
             <div className="flex items-center gap-3">
-              <Archive className="w-5 h-5 text-muted-foreground" />
+              <Archive className="text-muted-foreground h-5 w-5" />
               <div>
                 <div className="font-medium">{change.name}</div>
-                <div className="text-sm text-muted-foreground">
+                <div className="text-muted-foreground text-sm">
                   {change.id}
                   {change.updatedAt > 0 && <> · {formatRelativeTime(change.updatedAt)}</>}
                 </div>
               </div>
             </div>
-            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            <ChevronRight className="text-muted-foreground h-4 w-4" />
           </Link>
         ))}
         {archived?.length === 0 && (
-          <div className="p-8 text-center text-muted-foreground">
-            <Archive className="w-12 h-12 mx-auto mb-4 opacity-50" />
+          <div className="text-muted-foreground p-8 text-center">
+            <Archive className="mx-auto mb-4 h-12 w-12 opacity-50" />
             <p>No archived changes yet.</p>
-            <p className="text-sm mt-2">
+            <p className="mt-2 text-sm">
               Changes are archived after implementation using{' '}
-              <code className="bg-muted px-1 rounded">openspec archive</code>
+              <code className="bg-muted rounded px-1">openspec archive</code>
             </p>
           </div>
         )}

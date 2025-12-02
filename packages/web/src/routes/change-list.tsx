@@ -1,18 +1,24 @@
-import { useChangesSubscription } from '@/lib/use-subscription'
 import { formatRelativeTime } from '@/lib/format-time'
+import { useChangesSubscription } from '@/lib/use-subscription'
 import { Link } from '@tanstack/react-router'
-import { GitBranch, ChevronRight } from 'lucide-react'
+import { ChevronRight, GitBranch } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 export function ChangeList() {
   const { data: changes, isLoading } = useChangesSubscription()
+  const [firstFrameLoading, setFirstFrameLoading] = useState(true)
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setFirstFrameLoading(false))
+    return () => cancelAnimationFrame(id)
+  }, [])
 
-  if (isLoading) {
-    return <div className="animate-pulse">Loading changes...</div>
+  if (firstFrameLoading || (isLoading && !changes)) {
+    return <div className="route-loading animate-pulse">Loading changes...</div>
   }
 
   return (
     <div className="space-y-6">
-      <h1 className="flex items-center gap-2 text-2xl font-bold font-nav">
+      <h1 className="font-nav flex items-center gap-2 text-2xl font-bold">
         <GitBranch className="h-6 w-6 shrink-0" />
         Changes
       </h1>
@@ -25,29 +31,29 @@ export function ChangeList() {
         .
       </p>
 
-      <div className="border border-border rounded-lg divide-y divide-border">
+      <div className="border-border divide-border divide-y rounded-lg border">
         {changes?.map((change) => (
           <Link
             key={change.id}
             to="/changes/$changeId"
             params={{ changeId: change.id }}
-            className="flex items-center justify-between p-4 hover:bg-muted/50"
+            className="hover:bg-muted/50 flex items-center justify-between p-4"
           >
             <div className="flex items-center gap-3">
-              <GitBranch className="w-5 h-5 text-muted-foreground" />
+              <GitBranch className="text-muted-foreground h-5 w-5" />
               <div>
                 <div className="font-medium">{change.name}</div>
-                <div className="text-sm text-muted-foreground">
+                <div className="text-muted-foreground text-sm">
                   {change.progress.completed}/{change.progress.total} tasks
                   {change.updatedAt > 0 && <> · {formatRelativeTime(change.updatedAt)}</>}
                 </div>
               </div>
             </div>
-            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            <ChevronRight className="text-muted-foreground h-4 w-4" />
           </Link>
         ))}
         {changes?.length === 0 && (
-          <div className="p-4 text-muted-foreground text-center">
+          <div className="text-muted-foreground p-4 text-center">
             No active changes. Create one in <code>openspec/changes/</code>
           </div>
         )}

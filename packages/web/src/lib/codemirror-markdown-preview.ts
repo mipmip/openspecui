@@ -466,7 +466,7 @@ const markdownPreviewTheme = EditorView.baseTheme({
   '.cm-md-task-checked::after': {
     content: '""',
     position: 'absolute',
-    inset: '2px 3px 2px 3px',
+    inset: '0.6px 3px 2.4px 3px',
     borderBottom: '2px solid var(--background)',
     borderRight: '2px solid var(--background)',
     transform: 'rotate(35deg)',

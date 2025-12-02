@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react'
-import { Copy, Check } from 'lucide-react'
+import { Check, Copy } from 'lucide-react'
+import { useCallback, useState } from 'react'
 
 interface CopyablePathProps {
   /** The path to display */
@@ -30,18 +30,14 @@ export function CopyablePath({ path, className = '' }: CopyablePathProps) {
   return (
     <button
       onClick={handleCopy}
-      className={`group flex items-start gap-2 text-left cursor-pointer hover:bg-muted/50 rounded p-2 -m-2 transition-colors ${className}`}
+      className={`hover:bg-muted/50 group -m-2 flex cursor-pointer items-start gap-2 rounded p-2 text-left transition-colors ${className}`}
       title="Click to copy"
     >
-      <code className="flex-1 text-sm font-mono break-all bg-muted px-2 py-1 rounded">
+      <code className="bg-muted h-7 flex-1 break-all rounded px-2 py-1 font-mono text-sm">
         {path}
       </code>
-      <span className="flex-shrink-0 mt-1 text-muted-foreground group-hover:text-foreground transition-colors">
-        {copied ? (
-          <Check className="w-4 h-4 text-green-500" />
-        ) : (
-          <Copy className="w-4 h-4" />
-        )}
+      <span className="text-muted-foreground group-hover:text-foreground mt-1 shrink-0 transition-colors">
+        {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
       </span>
     </button>
   )

@@ -16,14 +16,18 @@ import {
   GitBranch,
   ListChecks,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 export function ChangeView() {
   const { changeId } = useParams({ from: '/changes/$changeId' })
   const navigate = useNavigate()
   const { openArchiveModal, state: archiveModalState } = useArchiveModal()
-
   const { data: change, isLoading } = useChangeSubscription(changeId)
+  const [firstFrameLoading, setFirstFrameLoading] = useState(true)
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setFirstFrameLoading(false))
+    return () => cancelAnimationFrame(id)
+  }, [])
 
   // 保存最后一次有效的 changeName，用于在 change 被删除后打开 Modal
   const lastChangeNameRef = useRef(change?.name ?? changeId)
@@ -101,8 +105,8 @@ export function ChangeView() {
     ]
   }, [change, changeId, handleToggleTask, togglingIndex])
 
-  if (isLoading) {
-    return <div className="animate-pulse">Loading change...</div>
+  if (firstFrameLoading || (isLoading && !change)) {
+    return <div className="route-loading animate-pulse">Loading change...</div>
   }
 
   // 当 change 不存在时，显示空白（useEffect 会自动导航到 /changes）
@@ -119,7 +123,7 @@ export function ChangeView() {
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div>
-            <h1 className="flex items-center gap-2 text-2xl font-bold font-nav">
+            <h1 className="font-nav flex items-center gap-2 text-2xl font-bold">
               <GitBranch className="h-6 w-6 shrink-0" />
               {change.name}
             </h1>

@@ -363,7 +363,6 @@ getConfig: tProcedure.subscription(async function* () {
 我个人的建议是：我们自己默认的两种模式：`openspec`和`npx @fission-ai/openspec`，本质其实是`["openspec"]`和`["npx","@fission-ai/openspec"]`,其实完全可以使用`shell:false`。
 而对于用户自定义的cli，我们默认用最简单的方式去处理：用正则匹配的方式来拆分成数组，然而shell-parser其实是一件复杂的事情，因此难免我们这种解析会出错，因此我们存在第二种方式，就是自定义JSON-Array。我们只需要判断自定义cli的开头是不是`[`，如果是就进入JSON-Array的解析方式。这样用户就可以通过自定义Array的方式来传递可靠的自定义cli。
 
-
 ---
 
 现在我对Change进行Archive之后，会出现问题:
@@ -372,11 +371,9 @@ getConfig: tProcedure.subscription(async function* () {
 
 然而现在路由没变，界面上现实着：“Change not found”；同时我们的Arcihive的Dialog也消失不见了，导致我们连终端打印也看不到了。
 
-
 ---
 
 我们现在界面上有一个全局安装cli的按钮，目前只会在全局openspec不存在的时候会可用。也应该发生`npx @fission-ai/openspec --version`的版本号高于本地的时候，那么这时候界面上应该提示用户更新，同时全局安装的cli按钮也可用。
-
 
 ---
 
@@ -399,14 +396,13 @@ pnpm example:clean && pnpm example:setup
 
 接着我发现对于example的文件夹监听就失效了。我需要重启pnpm dev --dir example才能恢复正常。
 
-
 调查一下这是parcel/watcher的bug还是我们自己的bug，如果是parcel/watcher的bug，有什么规避方案吗？或者有什么本办法吗？
 
 ---
 
-
 不确定你基于projectDir的删除检测是否可靠，但是我可以给你一个非常朴素的检测建议，就是轮询：
 具体工作流程是这样的：
+
 1. 首先我们有一个3s的debunce，它会被我们的 parcel/watcher 发出的事件重置时间计时
 2. 如果事件陷入了沉默，那么我们就要尝试性地临时生成再删除一个临时文件
 3. 如果事件还是没有发出，我们就假设认为parcel/watcher实例实效了，那么就重新创建watcher实例ß
@@ -445,38 +441,41 @@ pnpm example:clean && pnpm example:setup
 请你仔细阅读 openspec[./references] 的源码了解 Change 的结构
 
 如果你想通实际的案例进一步了解确认Change 的结构，
-你可以看一下  `/Users/kzf/Dev/GitHub/chain-services/openspec/changes/add-rwa-org-team-exchange-performance` 这个文件夹的结构。
+你可以看一下 `/Users/kzf/Dev/GitHub/chain-services/openspec/changes/add-rwa-org-team-exchange-performance` 这个文件夹的结构。
 
 我的要求：
+
 1. 在 changes 页面中，合理地展示一项 Change 的内容
    1. 一个changes下面可能有多个specs吗？如果是的话，要考虑一下二级路由？如果不是的话，是不是一个 Tabs 就能解决展示的问题？
 2. 要更新一下我们的setup-example.ts。
 3. 如果这个 Change 的文件夹下面有其它的非 spec 的标准，在Tabs中，新增一个 Folder-Tab， 可以列出这个 Change 的文件夹的所有文件。在这个页面中，将是一个mini的code-editor，右边是文件列表，左边是monaco editor
-1. 所有新增或者修改的功能，底层一定是响应式的接口，可以实时变更的。参考现有的接口标准来进行开发。
+4. 所有新增或者修改的功能，底层一定是响应式的接口，可以实时变更的。参考现有的接口标准来进行开发。
 
 ---
 
 1. Tab-Folder
-    1. Folder/Overview结构请你参考我们的ToC组件，它基于容器查询，在桌面端和移动端都有良好的体验。
-       - 除了要考虑移动端设计，还需要考虑文件可能过多，溢出列表的问题，因此你可以充分参考markdown-viewer的组件设计
-    2. Folder自身没必要做 border 样式，专注于内容的样式就好，否则组件搭配在一起，会出现很多层border，体验会大大下降
-    3. 打开Folder，然后切换到别的Tab，再切回Folder，会报错： `InstantiationService has been disposed`
-    4. `Change Files`的文件列表的顺序存在问题，是一个低级错误，请你审查并修复
+   1. Folder/Overview结构请你参考我们的ToC组件，它基于容器查询，在桌面端和移动端都有良好的体验。
+      - 除了要考虑移动端设计，还需要考虑文件可能过多，溢出列表的问题，因此你可以充分参考markdown-viewer的组件设计
+   2. Folder自身没必要做 border 样式，专注于内容的样式就好，否则组件搭配在一起，会出现很多层border，体验会大大下降
+   3. 打开Folder，然后切换到别的Tab，再切回Folder，会报错： `InstantiationService has been disposed`
+   4. `Change Files`的文件列表的顺序存在问题，是一个低级错误，请你审查并修复
 2. Tab-Overview
-    1. Affected Specs中的内容是不是重复出现了，我看到它重复展示了两个`rwa-org-team-exchange-performance`。
-    2. Affected Specs列表中的 Suffix: `ADDED`，这个是什么意义？还有其它的状态值吗？
-    3. Overview混合了多个md文件，但是ToC只显示了一层内容。md文件的ToC应该混入Overview的ToC。
+   1. Affected Specs中的内容是不是重复出现了，我看到它重复展示了两个`rwa-org-team-exchange-performance`。
+   2. Affected Specs列表中的 Suffix: `ADDED`，这个是什么意义？还有其它的状态值吗？
+   3. Overview混合了多个md文件，但是ToC只显示了一层内容。md文件的ToC应该混入Overview的ToC。
 
 ---
 
 因为`Change Files`的宽度有限，因此要考虑加入横向滚动。
 
 ---
+
 path-marquee需要改进一下，它居然耦合的copy功能。
 因此path-marquee要先拆分成两部分：
+
 1. path-marquee 要改名成 text-marquee，专注于内容的展示
 2. 新增一个 copy-button，可以展示“可复制”的小图标，以及复制成功的状态与交互。
-将这两个组件组合在一起，替换现有的path-marquee组件
+   将这两个组件组合在一起，替换现有的path-marquee组件
 
 ---
 
@@ -498,13 +497,17 @@ Change详情页面的顶部的header，使用容器查询来优化样式：在�
 注意，我们整个架构是编译成静态文件，然后通过server服务来启动前端的。
 我的要求是，如果识别到用户的第一语言使用的是中文，那么将html只的google-fonts-cdn换成中文源。
 我比如说：
-```html
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
-```
-这里的`fonts.googleapis.com`和`fonts.gstatic.com`统一改成`fonts.googleapis.cn`和`fonts.gstatic.cn`
 
+```html
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap"
+  rel="stylesheet"
+/>
+```
+
+这里的`fonts.googleapis.com`和`fonts.gstatic.com`统一改成`fonts.googleapis.cn`和`fonts.gstatic.cn`
 
 ---
 
@@ -513,7 +516,6 @@ Change详情页面的顶部的header，使用容器查询来优化样式：在�
 3. 在Editor的最上方，最好显示完整的路径（vscode面包屑的那种效果）
 
 ---
-
 
 你确实修复了问题，但是这不是我想看到的结果，因为现在你实在change-overfiew中自己完全实现了一套markdown-viewer的逻辑。
 我的目的是让MarkdownViewer易用，所以MarkdownViewer在参数设计上就存在多种重载的可能。
@@ -526,26 +528,32 @@ Change详情页面的顶部的header，使用容器查询来优化样式：在�
 
 我的建议是，做好单层的 MarkdownViewer，使用TocContext来做到多层嵌套。
 比如说：
+
 ```tsx
-interface MarkdownViewerProps{
-  markdown:string|MarkdownViewerBuilder
+interface MarkdownViewerProps {
+  markdown: string | MarkdownViewerBuilder
 }
-{/*自动去获取上下文的 TocContext，如果没有会自动创建，内部调用MarkdownContext组件的时候，会返回这个markdown内容的tocItems，然后插入到TocContext中 */}
-<MarkdownViewer markdown={({H1,H2,Section})=>{
-  return <>
-    <H1>S1</H1>
-    {/*Section 会自动将内容的toc层级+1*/}
-    <Section> 
-      {/*获取到 TocContext，并将渲染的内容注入给TocContext*/}
-      <MarkdownViewer markdown={"# markdown1"}></MarkdownViewer>
-    </Section>
-    <H2>S2</H2>
-    <Section>
-      <MarkdownViewer markdown={"## markdown2"}></MarkdownViewer>
-    </Section>
-  </>
-}}>
-</MarkdownViewer>
+{
+  /*自动去获取上下文的 TocContext，如果没有会自动创建，内部调用MarkdownContext组件的时候，会返回这个markdown内容的tocItems，然后插入到TocContext中 */
+}
+;<MarkdownViewer
+  markdown={({ H1, H2, Section }) => {
+    return (
+      <>
+        <H1>S1</H1>
+        {/*Section 会自动将内容的toc层级+1*/}
+        <Section>
+          {/*获取到 TocContext，并将渲染的内容注入给TocContext*/}
+          <MarkdownViewer markdown={'# markdown1'}></MarkdownViewer>
+        </Section>
+        <H2>S2</H2>
+        <Section>
+          <MarkdownViewer markdown={'## markdown2'}></MarkdownViewer>
+        </Section>
+      </>
+    )
+  }}
+></MarkdownViewer>
 ```
 
 ---
@@ -555,3 +563,20 @@ interface MarkdownViewerProps{
 ---
 
 CodeEditor的统一逻辑是，非preview模式下，这些修饰全部关闭，而原始的行内容要完整展示，同时原本被隐藏起来的符号，统一是淡色的。
+
+---
+
+使用ViewTransition来配置我们的动画吧。
+
+页面切换的时候，顶部总有一个Loading的文字，在页面内容出来的时候它在淡出，停影响观感的，特别是我们是本地webui项目，不是挂在网络上的，所以这个Loading的文字虽然有意义，但是要考虑一下如何优化？
+
+---
+
+Loading文字的问题是：它现在是和我们的内容做交叉过渡的是吧。这里的问题是，在交叉过渡的时候，很正常Loading淡化并下移动；页面内内容渐显然后向上移动。但是最终动画完成后，Loading又突然显示出来。和我们的页面内容层叠在一起，我试着加上 animation-fill-mode:forwards ，但是没有效果，我觉得是ViewTransition的配置导致的问题。
+
+---
+
+很好，果然是ViewTranstion的问题。大部分的页面都正常了，我还顺便修复了project页面Loading问题，它的Loading不该卸载TabContent中。
+另外，Loading的出现除了考虑数据的网络加载，还要考虑页面渲染可能比较慢（因为我们要动态解析md，或者初始化编辑器，可能会比较卡），所以这方面还要考虑。
+
+还有，我们的二级页面，也要考虑Loading的效果

@@ -5,13 +5,20 @@ import { useAgentsMdSubscription, useProjectMdSubscription } from '@/lib/use-sub
 import { useMutation } from '@tanstack/react-query'
 import { Bot, Edit2, FileText, Folder, Save, X } from 'lucide-react'
 import { Activity, useState } from 'react'
+import { useEffect } from 'react'
 
 type ActiveTab = 'project' | 'agents'
 
 export function Project() {
+  const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<ActiveTab>('project')
   const [editingTab, setEditingTab] = useState<ActiveTab | null>(null)
   const [editContent, setEditContent] = useState('')
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setLoading(false))
+    return () => cancelAnimationFrame(id)
+  }, [])
 
   const { data: projectMd, isLoading: projectLoading } = useProjectMdSubscription()
   const { data: agentsMd, isLoading: agentsLoading } = useAgentsMdSubscription()
@@ -70,10 +77,18 @@ export function Project() {
     ),
   }
 
+  if (projectLoading || agentsLoading) {
+    return <div className="route-loading animate-pulse">Loading...</div>
+  }
+
+  if (loading) {
+    return <div className="route-loading animate-pulse">Loading project...</div>
+  }
+
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="flex items-center gap-2 text-2xl font-bold font-nav">
+        <h1 className="font-nav flex items-center gap-2 text-2xl font-bold">
           <Folder className="h-6 w-6 shrink-0" />
           Project
         </h1>
@@ -179,8 +194,8 @@ function TabContent({
   defaultContent,
   onStartEdit,
 }: TabContentProps) {
-  if (isLoading) {
-    return <div className="animate-pulse p-4">Loading...</div>
+  if (isLoading && !content) {
+    return <div className="route-loading animate-pulse">Loading...</div>
   }
 
   if (!content) {

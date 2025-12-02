@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
-import { Copy, Check } from 'lucide-react'
+import { Check, Copy } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 interface PathMarqueeProps {
   /** The path to display */
@@ -64,26 +64,26 @@ export function PathMarquee({
   return (
     <button
       onClick={handleCopy}
-      className={`group flex items-center gap-1.5 cursor-pointer hover:bg-muted/50 rounded transition-colors ${className}`}
+      className={`hover:bg-muted/50 group flex cursor-pointer items-center gap-1.5 rounded transition-colors ${className}`}
       title={`${path}\n\nClick to copy`}
     >
       {/* Marquee container */}
       <div
         ref={containerRef}
-        className="overflow-hidden whitespace-nowrap relative"
+        className="relative overflow-hidden whitespace-nowrap"
         style={{ maxWidth: maxWidthStyle }}
       >
         {/* Animated content */}
         <div
           ref={contentRef}
           data-content={path}
-          className={`inline-block relative ${shouldAnimate ? 'animate-marquee group-hover:[animation-play-state:paused]' : ''}`}
+          className={`relative inline-block ${shouldAnimate ? 'animate-marquee group-hover:[animation-play-state:paused]' : ''}`}
           style={
             shouldAnimate
-              ? {
+              ? ({
                   '--marquee-duration': `${duration}s`,
                   '--marquee-gap': `${gap}px`,
-                } as React.CSSProperties
+                } as React.CSSProperties)
               : undefined
           }
         >
@@ -92,11 +92,11 @@ export function PathMarquee({
       </div>
 
       {/* Copy indicator */}
-      <span className="flex-shrink-0 text-muted-foreground group-hover:text-foreground transition-colors">
+      <span className="text-muted-foreground group-hover:text-foreground shrink-0 transition-colors">
         {copied ? (
-          <Check className="w-3.5 h-3.5 text-green-500" />
+          <Check className="h-3.5 w-3.5 text-green-500" />
         ) : (
-          <Copy className="w-3.5 h-3.5" />
+          <Copy className="h-3.5 w-3.5" />
         )}
       </span>
     </button>

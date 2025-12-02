@@ -1,6 +1,6 @@
-import { Wifi, WifiOff, FolderOpen, RefreshCw } from 'lucide-react'
-import { useServerStatus, useManualReconnect } from '@/lib/use-server-status'
 import { PathMarquee } from '@/components/path-marquee'
+import { useManualReconnect, useServerStatus } from '@/lib/use-server-status'
+import { FolderOpen, RefreshCw, Wifi, WifiOff } from 'lucide-react'
 
 /** Status indicator - simplified for mobile, full for desktop */
 export function StatusIndicator() {
@@ -10,7 +10,7 @@ export function StatusIndicator() {
   if (status.connected) {
     return (
       <div className="status-indicator flex items-center gap-1.5 text-xs">
-        <Wifi className="w-3.5 h-3.5 text-green-500" />
+        <Wifi className="h-3.5 w-3.5 text-green-500" />
         <span className="status-text text-green-600">Live</span>
       </div>
     )
@@ -19,16 +19,16 @@ export function StatusIndicator() {
   // 断开连接时显示重连提示
   return (
     <div className="status-indicator flex items-center gap-1.5 text-xs">
-      <WifiOff className="w-3.5 h-3.5 text-red-500" />
+      <WifiOff className="h-3.5 w-3.5 text-red-500" />
       <span className="status-text text-red-600">Offline</span>
       {status.reconnectCountdown !== null && (
         <button
           onClick={reconnect}
-          className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+          className="text-muted-foreground hover:text-foreground flex cursor-pointer items-center gap-1 transition-colors"
           title="Click to reconnect now"
         >
           <span className="text-xs">({status.reconnectCountdown}s)</span>
-          <RefreshCw className="w-3 h-3" />
+          <RefreshCw className="h-3 w-3" />
         </button>
       )}
     </div>
@@ -40,12 +40,12 @@ export function DesktopStatusBar() {
   const status = useServerStatus()
 
   return (
-    <div className="desktop-status h-8 border-t border-border bg-muted/30 px-4 flex items-center justify-between text-xs text-muted-foreground">
+    <div className="desktop-status border-border bg-muted/30 text-muted-foreground flex h-8 items-center justify-between border-t px-4 text-xs">
       <div className="flex items-center gap-4">
         <StatusIndicator />
         {status.projectDir && (
           <div className="flex items-center gap-1.5">
-            <FolderOpen className="w-3.5 h-3.5 flex-shrink-0" />
+            <FolderOpen className="h-3.5 w-3.5 shrink-0" />
             <PathMarquee
               path={status.projectDir}
               maxWidth={300}

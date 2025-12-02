@@ -1,5 +1,6 @@
 import { MarkdownViewer } from '@/components/markdown-viewer'
 import { useSpecSubscription } from '@/lib/use-subscription'
+import type { Spec } from '@openspecui/core'
 import { Link, useParams } from '@tanstack/react-router'
 import { AlertCircle, AlertTriangle, ArrowLeft, CheckCircle, FileText, Info } from 'lucide-react'
 
@@ -13,14 +14,27 @@ export function SpecView() {
     issues: Array<{ severity: string; message: string; path?: string }>
   } | null
 
-  if (isLoading) {
-    return <div className="animate-pulse">Loading spec...</div>
+  if (isLoading && !spec) {
+    return <div className="route-loading animate-pulse">Loading spec...</div>
   }
 
   if (!spec) {
     return <div className="text-red-600">Spec not found</div>
   }
 
+  return <SpecContent spec={spec} validation={validation} />
+}
+
+function SpecContent({
+  spec,
+  validation,
+}: {
+  spec: Spec
+  validation: {
+    valid: boolean
+    issues: Array<{ severity: string; message: string; path?: string }>
+  } | null
+}) {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6">
       <div className="flex items-center gap-4">
@@ -28,7 +42,7 @@ export function SpecView() {
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold font-nav">
+          <h1 className="font-nav flex items-center gap-2 text-2xl font-bold">
             <FileText className="h-6 w-6 shrink-0" />
             {spec.name}
           </h1>
@@ -43,52 +57,52 @@ export function SpecView() {
         markdown={({ H1, H2, Section }) => (
           <div className="space-y-6">
             {/* Overview */}
-            <section>
+            <Section>
               <H1 id="overview">Overview</H1>
-              <div className="mt-2 rounded-lg bg-muted/30 p-4">
+              <div className="bg-muted/30 mt-2 rounded-lg p-4">
                 {spec.overview ? (
                   <MarkdownViewer markdown={spec.overview} />
                 ) : (
                   <span className="text-muted-foreground">No overview</span>
                 )}
               </div>
-            </section>
+            </Section>
 
             {/* Requirements */}
-            <section>
+            <Section>
               <H1 id="requirements">Requirements ({spec.requirements.length})</H1>
               <div className="mt-3 space-y-4">
                 {spec.requirements.map((req) => (
-                  <Section key={req.id}>
-                    <div className="rounded-lg border border-border p-4">
-                      <H2 id={`req-${req.id}`}>{req.text}</H2>
-                      {req.scenarios.length > 0 && (
-                        <div className="mt-3">
-                          <div className="mb-2 text-sm font-medium text-muted-foreground">
-                            Scenarios ({req.scenarios.length})
-                          </div>
-                          {req.scenarios.map((scenario, i) => {
-                            // Remove leading/trailing --- separators
-                            const content = scenario.rawText
-                              .replace(/^---\n?/, '')
-                              .replace(/\n?---$/, '')
-                              .trim()
-                            return (
-                              <div key={i} className="rounded-md bg-muted/50 p-3">
-                                <MarkdownViewer markdown={content}/>
-                              </div>
-                            )
-                          })}
+                  <Section key={req.id} className="border-border rounded-lg border p-4">
+                    <H2 className="text-base" id={`req-${req.id}`}>
+                      {req.text}
+                    </H2>
+                    {req.scenarios.length > 0 && (
+                      <div className="mt-3">
+                        <div className="text-muted-foreground mb-2 text-sm font-medium">
+                          Scenarios ({req.scenarios.length})
                         </div>
-                      )}
-                    </div>
+                        {req.scenarios.map((scenario, i) => {
+                          // Remove leading/trailing --- separators
+                          const content = scenario.rawText
+                            .replace(/^---\n?/, '')
+                            .replace(/\n?---$/, '')
+                            .trim()
+                          return (
+                            <div key={i} className="bg-muted/50 rounded-md p-3">
+                              <MarkdownViewer markdown={content} />
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
                   </Section>
                 ))}
                 {spec.requirements.length === 0 && (
                   <div className="text-muted-foreground">No requirements defined</div>
                 )}
               </div>
-            </section>
+            </Section>
           </div>
         )}
       />

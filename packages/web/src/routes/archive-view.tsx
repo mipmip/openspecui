@@ -1,18 +1,23 @@
-import { useMemo } from 'react'
+import { ChangeOverview } from '@/components/change-overview'
+import { FolderEditorViewer } from '@/components/folder-editor-viewer'
+import { Tabs, type Tab } from '@/components/tabs'
+import { TasksView } from '@/components/tasks-view'
 import { useArchiveSubscription } from '@/lib/use-subscription'
 import { getRouteApi, Link } from '@tanstack/react-router'
 import { Archive, ArrowLeft, CheckCircle, FileText, FolderTree, ListChecks } from 'lucide-react'
-import { Tabs, type Tab } from '@/components/tabs'
-import { TasksView } from '@/components/tasks-view'
-import { ChangeOverview } from '@/components/change-overview'
-import { FolderEditorViewer } from '@/components/folder-editor-viewer'
+import { useEffect, useMemo, useState } from 'react'
 
 const route = getRouteApi('/archive/$changeId')
 
 export function ArchiveView() {
   const { changeId } = route.useParams()
 
-  const { data: change, isLoading } = useArchiveSubscription(changeId)
+  const { data: change } = useArchiveSubscription(changeId)
+  const [loading, setLoading] = useState(true)
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setLoading(false))
+    return () => cancelAnimationFrame(id)
+  }, [])
 
   const tabs = useMemo<Tab[]>(() => {
     if (!change) return []
@@ -21,7 +26,7 @@ export function ArchiveView() {
       {
         id: 'overview',
         label: 'Overview',
-        icon: <FileText className="w-4 h-4" />,
+        icon: <FileText className="h-4 w-4" />,
         content: <ChangeOverview change={change} />,
       },
     ]
@@ -30,9 +35,9 @@ export function ArchiveView() {
       result.push({
         id: 'tasks',
         label: `Tasks (${change.progress.completed}/${change.progress.total})`,
-        icon: <ListChecks className="w-4 h-4" />,
+        icon: <ListChecks className="h-4 w-4" />,
         content: (
-          <div className="h-full border border-border rounded-lg p-4 overflow-auto">
+          <div className="border-border h-full overflow-auto rounded-lg border p-4">
             <TasksView tasks={change.tasks} progress={change.progress} readonly />
           </div>
         ),
@@ -42,22 +47,22 @@ export function ArchiveView() {
     result.push({
       id: 'folder',
       label: 'Folder',
-      icon: <FolderTree className="w-4 h-4" />,
+      icon: <FolderTree className="h-4 w-4" />,
       content: <FolderEditorViewer changeId={changeId} archived />,
     })
 
     return result
   }, [change, changeId])
 
-  if (isLoading) {
-    return <div className="animate-pulse">Loading archived change...</div>
+  if (loading) {
+    return <div className="route-loading animate-pulse">Loading archived change...</div>
   }
 
   if (!change) {
     return (
-      <div className="text-center py-12">
+      <div className="py-12 text-center">
         <p className="text-muted-foreground">Archived change not found: {changeId}</p>
-        <Link to="/archive" className="text-primary hover:underline mt-4 inline-block">
+        <Link to="/archive" className="text-primary mt-4 inline-block hover:underline">
           Back to Archive
         </Link>
       </div>
@@ -70,30 +75,30 @@ export function ArchiveView() {
       <div className="flex items-center gap-4">
         <Link
           to="/archive"
-          className="p-2 hover:bg-muted rounded-md transition-colors"
+          className="hover:bg-muted rounded-md p-2 transition-colors"
           title="Back to Archive"
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeft className="h-5 w-5" />
         </Link>
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold font-nav">
+          <h1 className="font-nav flex items-center gap-2 text-2xl font-bold">
             <Archive className="h-6 w-6 shrink-0" />
             {change.name}
           </h1>
-          <p className="text-sm text-muted-foreground">{changeId}</p>
+          <p className="text-muted-foreground text-sm">{changeId}</p>
         </div>
       </div>
 
       {/* Progress */}
       <div className="flex items-center gap-2 text-sm">
-        <CheckCircle className="w-4 h-4 text-green-500" />
+        <CheckCircle className="h-4 w-4 text-green-500" />
         <span className="text-green-600">
           Completed: {change.progress.completed}/{change.progress.total} tasks
         </span>
       </div>
 
       {/* Tabs with Activity for state preservation */}
-      <Tabs tabs={tabs} defaultTab={tabs[0]?.id} className="min-h-0 flex-1 gap-6"/>
+      <Tabs tabs={tabs} defaultTab={tabs[0]?.id} className="min-h-0 flex-1 gap-6" />
     </div>
   )
 }

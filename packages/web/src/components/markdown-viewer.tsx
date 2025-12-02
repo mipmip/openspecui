@@ -12,6 +12,7 @@ type HeadingLevel = 1 | 2 | 3 | 4 | 5 | 6
 interface HeadingProps {
   id?: string
   children?: ReactNode
+  className?: string
 }
 
 type HeadingComponent = (props: HeadingProps) => ReactNode
@@ -40,6 +41,8 @@ export interface MarkdownViewerProps {
   /** Markdown 内容：字符串或 Builder 函数 */
   markdown: string | MarkdownBuilderFn
   className?: string
+  /** 渲染和 ToC 建立完成后回调（用于外层占位控制） */
+  onReady?: () => void
 }
 
 // ============================================================================
@@ -55,7 +58,7 @@ export interface MarkdownViewerProps {
  *
  * 嵌套时自动检测父级 Context，只渲染内容不显示 ToC sidebar。
  */
-export function MarkdownViewer({ markdown, className = '' }: MarkdownViewerProps) {
+export function MarkdownViewer({ markdown, className = '', onReady }: MarkdownViewerProps) {
   const parentCtx = useTocContext()
   const isNested = !!parentCtx
 
@@ -65,16 +68,17 @@ export function MarkdownViewer({ markdown, className = '' }: MarkdownViewerProps
   }
 
   // 顶层模式：渲染完整布局（content + ToC sidebar）
-  return <RootMarkdownViewer markdown={markdown} className={className} />
+  return <RootMarkdownViewer markdown={markdown} className={className} onReady={onReady} />
 }
 
 // ============================================================================
 // RootMarkdownViewer - 顶层模式
 // ============================================================================
 
-function RootMarkdownViewer({ markdown, className }: MarkdownViewerProps) {
+function RootMarkdownViewer({ markdown, className, onReady }: MarkdownViewerProps) {
   const [tocItems, setTocItems] = useState<TocItem[]>([])
   const collectorRef = useRef<TocCollector>(null!)
+  const readyCalledRef = useRef(false)
 
   // 每次渲染前重置 collector
   collectorRef.current = new TocCollector()
@@ -88,6 +92,13 @@ function RootMarkdownViewer({ markdown, className }: MarkdownViewerProps) {
       return newItems
     })
   })
+
+  // 通知外层：内容与 ToC 已经挂载（首个 effect 后触发一次）
+  useEffect(() => {
+    if (readyCalledRef.current) return
+    readyCalledRef.current = true
+    onReady?.()
+  }, [onReady, tocItems])
 
   const timelineScope = useMemo(() => generateTimelineScope(tocItems), [tocItems])
 
@@ -216,7 +227,7 @@ function BuilderMarkdownContent({
     const slugCount = new Map<string, number>()
 
     const createHeading = (level: HeadingLevel): HeadingComponent => {
-      return function Heading({ id: fixedId, children }: HeadingProps) {
+      return function Heading({ id: fixedId, className, children }: HeadingProps) {
         const text = extractTextFromChildren(children)
         const baseSlug = fixedId ?? (slugify(text) || 'heading')
 
@@ -230,7 +241,7 @@ function BuilderMarkdownContent({
         const { index } = collector.add(text, adjustedLevel, id)
 
         return (
-          <HeadingElement level={adjustedLevel} id={id} index={index}>
+          <HeadingElement level={adjustedLevel} id={id} index={index} className={className}>
             {children}
           </HeadingElement>
         )
@@ -241,7 +252,7 @@ function BuilderMarkdownContent({
       // Section 通过 TocLevelProvider 提供层级 +1
       return (
         <TocLevelProvider additionalOffset={1}>
-          <section className={className}>{children}</section>
+          <section className={`markdown-section ${className}`}>{children}</section>
         </TocLevelProvider>
       )
     }
@@ -269,47 +280,49 @@ function HeadingElement({
   id,
   index,
   children,
+  className,
 }: {
   level: HeadingLevel
   id: string
   index: number
   children?: ReactNode
+  className?: string
 }) {
   const style = { viewTimelineName: `--toc-${index}` }
   switch (level) {
     case 1:
       return (
-        <h1 id={id} style={style}>
+        <h1 id={id} className={className} style={style}>
           {children}
         </h1>
       )
     case 2:
       return (
-        <h2 id={id} style={style}>
+        <h2 id={id} className={className} style={style}>
           {children}
         </h2>
       )
     case 3:
       return (
-        <h3 id={id} style={style}>
+        <h3 id={id} className={className} style={style}>
           {children}
         </h3>
       )
     case 4:
       return (
-        <h4 id={id} style={style}>
+        <h4 id={id} className={className} style={style}>
           {children}
         </h4>
       )
     case 5:
       return (
-        <h5 id={id} style={style}>
+        <h5 id={id} className={className} style={style}>
           {children}
         </h5>
       )
     case 6:
       return (
-        <h6 id={id} style={style}>
+        <h6 id={id} className={className} style={style}>
           {children}
         </h6>
       )

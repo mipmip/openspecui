@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
-import { X, Terminal, CheckCircle, XCircle, Loader2, Package } from 'lucide-react'
 import { trpcClient } from '@/lib/trpc'
 import type { CliStreamEvent } from '@openspecui/core'
+import { CheckCircle, Loader2, Package, Terminal, X, XCircle } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 /** 成功后的操作按钮 */
 export interface SuccessAction {
@@ -184,40 +184,33 @@ export function CliTerminalModal({
       <div className="absolute inset-0 bg-black/50" onClick={handleClose} />
 
       {/* Modal */}
-      <div className="relative w-full max-w-2xl mx-4 bg-background border border-border rounded-lg shadow-xl">
+      <div className="bg-background border-border relative mx-4 w-full max-w-2xl rounded-lg border shadow-xl">
         {/* Header */}
-        <div className={`flex items-center justify-between px-4 py-3 border-b ${isSuccess ? 'border-green-500/30 bg-green-500/5' : 'border-border'}`}>
+        <div
+          className={`flex items-center justify-between border-b px-4 py-3 ${isSuccess ? 'border-green-500/30 bg-green-500/5' : 'border-border'}`}
+        >
           <div className="flex items-center gap-2">
             {isSuccess ? (
-              <CheckCircle className="w-5 h-5 text-green-500" />
+              <CheckCircle className="h-5 w-5 text-green-500" />
             ) : (
-              <Terminal className="w-5 h-5 text-muted-foreground" />
+              <Terminal className="text-muted-foreground h-5 w-5" />
             )}
-            <h2 className="font-semibold">
-              {isSuccess ? successConfig.title : title}
-            </h2>
-            {status === 'running' && (
-              <Loader2 className="w-4 h-4 animate-spin text-primary" />
-            )}
+            <h2 className="font-semibold">{isSuccess ? successConfig.title : title}</h2>
+            {status === 'running' && <Loader2 className="text-primary h-4 w-4 animate-spin" />}
             {status === 'success' && !successConfig && (
-              <CheckCircle className="w-4 h-4 text-green-500" />
+              <CheckCircle className="h-4 w-4 text-green-500" />
             )}
-            {status === 'error' && (
-              <XCircle className="w-4 h-4 text-red-500" />
-            )}
+            {status === 'error' && <XCircle className="h-4 w-4 text-red-500" />}
           </div>
-          <button
-            onClick={handleClose}
-            className="p-1 hover:bg-muted rounded"
-          >
-            <X className="w-5 h-5" />
+          <button onClick={handleClose} className="hover:bg-muted rounded p-1">
+            <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Terminal output */}
         <div
           ref={outputRef}
-          className={`overflow-auto bg-zinc-900 text-zinc-100 font-mono text-sm p-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-zinc-700 ${
+          className={`scrollbar-thin scrollbar-track-transparent scrollbar-thumb-zinc-700 overflow-auto bg-zinc-900 p-4 font-mono text-sm text-zinc-100 ${
             isSuccess ? 'h-48' : 'h-80'
           }`}
         >
@@ -230,31 +223,25 @@ export function CliTerminalModal({
             </div>
           ))}
           {status === 'success' && (
-            <div className="mt-2 text-green-400">
-              Process exited with code {exitCode}
-            </div>
+            <div className="mt-2 text-green-400">Process exited with code {exitCode}</div>
           )}
           {status === 'error' && exitCode !== null && (
-            <div className="mt-2 text-red-400">
-              Process exited with code {exitCode}
-            </div>
+            <div className="mt-2 text-red-400">Process exited with code {exitCode}</div>
           )}
         </div>
 
         {/* Success info (only when successConfig provided) */}
         {isSuccess && successConfig.description && (
-          <div className="px-4 py-3 border-t border-border bg-muted/30">
+          <div className="border-border bg-muted/30 border-t px-4 py-3">
             <div className="flex items-start gap-3">
-              <Package className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-muted-foreground">
-                {successConfig.description}
-              </p>
+              <Package className="mt-0.5 h-5 w-5 shrink-0 text-green-500" />
+              <p className="text-muted-foreground text-sm">{successConfig.description}</p>
             </div>
           </div>
         )}
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-border">
+        <div className="border-border flex items-center justify-end gap-2 border-t px-4 py-3">
           {isSuccess ? (
             // Success actions
             successConfig.actions.map((action, i) => (
@@ -263,8 +250,8 @@ export function CliTerminalModal({
                 onClick={action.onClick}
                 className={
                   action.primary
-                    ? 'px-4 py-2 bg-primary text-primary-foreground hover:opacity-90 rounded-md'
-                    : 'px-4 py-2 bg-muted hover:bg-muted/80 rounded-md'
+                    ? 'bg-primary text-primary-foreground rounded-md px-4 py-2 hover:opacity-90'
+                    : 'bg-muted hover:bg-muted/80 rounded-md px-4 py-2'
                 }
               >
                 {action.label}
@@ -274,7 +261,7 @@ export function CliTerminalModal({
             // Default close button
             <button
               onClick={handleClose}
-              className="px-4 py-2 bg-muted hover:bg-muted/80 rounded-md"
+              className="bg-muted hover:bg-muted/80 rounded-md px-4 py-2"
             >
               {status === 'running' ? 'Cancel' : 'Close'}
             </button>

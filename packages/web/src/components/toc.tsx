@@ -50,11 +50,7 @@ export function Toc({ items, defaultCollapsed = true, className = '' }: TocProps
             className={`ml-auto h-4 w-4 transition-transform ${collapsed ? '' : 'rotate-180'}`}
           />
         </button>
-        {!collapsed && (
-          <div className="scrollbar-thin scrollbar-track-transparent max-h-[300px] overflow-y-auto p-2">
-            <TocLinks items={items} />
-          </div>
-        )}
+        {!collapsed && <TocLinks items={items} />}
       </div>
 
       {/* Wide: always visible */}
@@ -74,15 +70,7 @@ export function Toc({ items, defaultCollapsed = true, className = '' }: TocProps
  * Find the nearest scrollable ancestor element.
  */
 function findScrollableParent(element: HTMLElement): HTMLElement | null {
-  let parent = element.parentElement
-  while (parent) {
-    const { overflowY } = getComputedStyle(parent)
-    if (overflowY === 'auto' || overflowY === 'scroll') {
-      return parent
-    }
-    parent = parent.parentElement
-  }
-  return null
+  return element.closest('.toc-root') as HTMLElement
 }
 
 /**

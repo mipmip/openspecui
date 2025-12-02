@@ -17,6 +17,11 @@ import './index.css'
 // Root layout
 const rootRoute = createRootRoute({
   component: RootLayout,
+  pendingComponent: () => (
+    <div className="route-loading animate-pulse p-6 text-center text-sm text-muted-foreground">
+      Loading...
+    </div>
+  ),
 })
 
 // Routes
