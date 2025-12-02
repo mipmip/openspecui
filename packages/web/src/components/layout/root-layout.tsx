@@ -12,7 +12,10 @@ type ViewTransitionCapableDocument = Document & {
 }
 
 function ViewTransitionOutlet() {
-  const locationKey = useRouterState({ select: (state) => state.location.href })
+  // Ignore hash-only changes to avoid triggering view transitions on in-page anchor jumps
+  const locationKey = useRouterState({
+    select: (state) => `${state.location.pathname}${state.location.search}`,
+  })
   const [renderKey, setRenderKey] = useState(locationKey)
 
   useLayoutEffect(() => {

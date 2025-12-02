@@ -122,12 +122,17 @@ export function ChangeView() {
           <Link to="/changes" className="hover:bg-muted rounded-md p-2">
             <ArrowLeft className="h-5 w-5" />
           </Link>
-          <div>
-            <h1 className="font-nav flex items-center gap-2 text-2xl font-bold">
+          <div className="flex flex-col gap-1">
+            <h1
+              className="font-nav flex items-center gap-2 font-bold"
+              style={{ fontSize: 'clamp(1rem, 3cqi, 1.75rem)' }}
+            >
               <GitBranch className="h-6 w-6 shrink-0" />
               {change.name}
             </h1>
-            <p className="text-muted-foreground">ID: {change.id}</p>
+            <p className="text-muted-foreground" style={{ fontSize: 'clamp(0.7rem, 2cqi, 1rem)' }}>
+              ID: {change.id}
+            </p>
           </div>
         </div>
 
@@ -136,7 +141,12 @@ export function ChangeView() {
           className="change-archive-button @sm:gap-2 @sm:px-4 flex h-10 items-center gap-1.5 rounded-md bg-red-600 px-3 py-2 text-white hover:bg-red-700"
         >
           <Archive className="h-4 w-4" />
-          <span className="change-archive-text @sm:inline hidden">Archive</span>
+          <span
+            className="change-archive-text @sm:inline hidden"
+            style={{ fontSize: 'clamp(0.85rem, 2cqi, 1rem)' }}
+          >
+            Archive
+          </span>
         </button>
       </div>
 

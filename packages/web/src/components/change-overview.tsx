@@ -51,24 +51,24 @@ export function ChangeOverview({ change }: { change: Change }) {
       markdown={({ H1, Section }) => (
         <div className="space-y-6">
           {/* Why */}
-          <section>
+          <Section>
             <H1 id="why">Why</H1>
             <div className="bg-muted/30 mt-2 rounded-lg p-4 [zoom:0.86]">
               <MarkdownViewer markdown={change.why} />
             </div>
-          </section>
+          </Section>
 
           {/* What Changes */}
-          <section>
+          <Section>
             <H1 id="what-changes">What Changes</H1>
             <div className="bg-muted/30 mt-2 rounded-lg p-4 [zoom:0.86]">
               <MarkdownViewer markdown={change.whatChanges} />
             </div>
-          </section>
+          </Section>
 
           {/* Design */}
           {change.design && (
-            <section>
+            <Section>
               <H1 id="design">Design</H1>
               <div className="bg-muted/30 mt-2 rounded-lg p-4 [zoom:0.86]">
                 {/* 嵌套 MarkdownViewer，Section 会自动 +1 层级 */}
@@ -76,12 +76,12 @@ export function ChangeOverview({ change }: { change: Change }) {
                   <MarkdownViewer markdown={change.design} />
                 </Section>
               </div>
-            </section>
+            </Section>
           )}
 
           {/* Affected Specs */}
           {affectedSpecs.length > 0 && (
-            <section>
+            <Section>
               <H1 id="affected-specs">Affected Specs ({affectedSpecs.length})</H1>
               <div className="divide-border border-border mt-3 divide-y rounded-lg border">
                 {affectedSpecs.map(({ spec, operation }) => (
@@ -95,12 +95,12 @@ export function ChangeOverview({ change }: { change: Change }) {
                   </div>
                 ))}
               </div>
-            </section>
+            </Section>
           )}
 
           {/* Delta Specs */}
           {deltaSpecs.length > 0 && (
-            <section>
+            <Section>
               <H1 id="delta-specs">Delta Specs ({deltaSpecs.length})</H1>
               <Section className="[zoom:0.86]">
                 <DeltaSpecTabs
@@ -109,7 +109,7 @@ export function ChangeOverview({ change }: { change: Change }) {
                   onActiveChange={setActiveDeltaSpecId}
                 />
               </Section>
-            </section>
+            </Section>
           )}
         </div>
       )}

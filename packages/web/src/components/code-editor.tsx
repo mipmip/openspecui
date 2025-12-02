@@ -13,10 +13,12 @@ import { javascript } from '@codemirror/lang-javascript'
 import { json } from '@codemirror/lang-json'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { yaml } from '@codemirror/lang-yaml'
+import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
 import { languages } from '@codemirror/language-data'
 import type { Extension } from '@codemirror/state'
 import { EditorState } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
+import { tags as t } from '@lezer/highlight'
 import CodeMirror from '@uiw/react-codemirror'
 import { useMemo } from 'react'
 
@@ -79,6 +81,19 @@ function getLanguageExtensions(language: LanguageType, filename?: string): Exten
   }
 }
 
+// 语法高亮：使用设计令牌，自动随 light/dark 变量切换
+const codeHighlightStyle = HighlightStyle.define([
+  { tag: [t.keyword, t.operatorKeyword, t.modifier], color: 'var(--primary)' },
+  { tag: [t.string, t.special(t.string)], color: 'var(--secondary)' },
+  { tag: [t.number, t.integer, t.float], color: 'var(--chart-4)' },
+  { tag: [t.bool, t.null, t.atom], color: 'var(--accent)' },
+  { tag: [t.typeName, t.className], color: 'var(--chart-3)' },
+  { tag: [t.function(t.variableName), t.propertyName], color: 'var(--chart-5)' },
+  { tag: [t.variableName], color: 'var(--foreground)' },
+  { tag: [t.comment, t.lineComment, t.blockComment], color: 'color-mix(in srgb, var(--muted-foreground) 80%, transparent)' },
+  { tag: t.punctuation, color: 'color-mix(in srgb, var(--foreground) 70%, transparent)' },
+])
+
 /**
  * CodeEditor 组件
  *
@@ -108,6 +123,7 @@ export function CodeEditor({
     const exts: Extension[] = [
       EditorState.readOnly.of(readOnly),
       ...getLanguageExtensions(resolvedLanguage, filename),
+      syntaxHighlighting(codeHighlightStyle, { fallback: true }),
     ]
     exts.push(
       EditorView.theme({
@@ -115,10 +131,10 @@ export function CodeEditor({
           lineHeight: '21px',
         },
         '.cm-editor': {
-          backgroundColor: 'var(--background)',
+          backgroundColor: 'var(--card)',
           color: 'var(--foreground)',
           borderRadius: '6px',
-          border: '1px solid var(--border)',
+          border: '1px solid color-mix(in srgb, var(--border) 80%, transparent)',
           height: '100%',
           minHeight: '240px',
         },
@@ -128,9 +144,9 @@ export function CodeEditor({
         },
         '.cm-gutters': {
           fontFamily: 'var(--font-mono)',
-          backgroundColor: 'var(--background)',
+          backgroundColor: 'var(--card)',
           color: 'color-mix(in srgb, var(--foreground) 60%, transparent)',
-          borderRight: '1px solid var(--border)',
+          borderRight: '1px solid color-mix(in srgb, var(--border) 80%, transparent)',
         },
         '.cm-scroller': {
           fontFamily: 'var(--font-mono)',
@@ -144,7 +160,7 @@ export function CodeEditor({
           color: 'var(--foreground)',
         },
         '.cm-selectionBackground, .cm-content ::selection': {
-          backgroundColor: 'color-mix(in srgb, var(--primary) 18%, transparent)',
+          backgroundColor: 'color-mix(in srgb, var(--primary) 24%, transparent)',
         },
         '&.cm-editor .cm-cursor': {
           borderLeftColor: 'var(--foreground)',
@@ -156,7 +172,7 @@ export function CodeEditor({
         '.cm-tooltip': {
           backgroundColor: 'var(--popover)',
           color: 'var(--popover-foreground)',
-          border: '1px solid var(--border)',
+          border: '1px solid color-mix(in srgb, var(--border) 80%, transparent)',
         },
         '.cm-tooltip-autocomplete': {
           '& > ul > li[aria-selected]': {
@@ -196,6 +212,7 @@ export function CodeEditor({
       value={value}
       onChange={onChange}
       placeholder={placeholder}
+      theme="none"
       basicSetup={{
         lineNumbers,
         foldGutter: !readOnly,
