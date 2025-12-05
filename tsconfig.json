@@ -1,9 +1,10 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022"],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "jsx": "react-jsx",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
@@ -15,7 +16,22 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
-    "verbatimModuleSyntax": true
+    "verbatimModuleSyntax": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["packages/web/src/*"],
+      "@openspecui/server": ["packages/server/src/index.ts"],
+      "@openspecui/core": ["packages/core/src/index.ts"],
+      "@openspecui/ai-provider": ["packages/ai-provider/src/index.ts"]
+    },
+    "types": ["node"]
   },
-  "exclude": ["node_modules", "dist", ".git"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    ".git",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "references/**"
+  ]
 }

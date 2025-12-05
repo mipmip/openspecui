@@ -5,12 +5,14 @@
   "description": "OpenSpec Web UI - Visual interface for spec-driven development",
   "type": "module",
   "scripts": {
+    "npm": "pnpm build && pnpm pub",
     "pub": "pnpm publish --access publish --no-git-checks --filter=openspecui",
     "dev": "tsx scripts/dev.ts",
     "dev:server": "pnpm --filter @openspecui/server dev",
     "dev:web": "pnpm --filter @openspecui/web dev",
-    "build": "pnpm run typecheck && pnpm run build:packages && pnpm run build:cli",
-    "build:packages": "pnpm --filter @openspecui/core build && pnpm --filter @openspecui/ai-provider build && pnpm --filter @openspecui/server build && pnpm --filter @openspecui/web build",
+    "build": "pnpm run build:deps && pnpm run typecheck && pnpm run build:packages && pnpm run build:cli",
+    "build:deps": "pnpm --filter @openspecui/core build && pnpm --filter @openspecui/ai-provider build",
+    "build:packages": "pnpm --filter @openspecui/server build && pnpm --filter @openspecui/web build",
     "build:cli": "pnpm --filter openspecui run build:copy-web && pnpm --filter openspecui exec tsdown",
     "typecheck": "pnpm -r --parallel run typecheck",
     "tc": "pnpm -r --parallel run typecheck",
@@ -43,8 +45,12 @@
     "typescript": "^5.7.2"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["@parcel/watcher"],
+    "onlyBuiltDependencies": [
+      "@parcel/watcher"
+    ],
     "patchedDependencies": {}
   },
-  "trustedDependencies": ["@parcel/watcher"]
+  "trustedDependencies": [
+    "@parcel/watcher"
+  ]
 }

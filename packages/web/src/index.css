@@ -363,6 +363,24 @@ html[data-vt-running] .route-loading {
   background-color: var(--shiki-dark-bg) !important;
 }
 
+/* Terminal line effects */
+.terminal-shimmer {
+  background-image: linear-gradient(90deg, #a1a1aa 0%, #fafafa 50%, #a1a1aa 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: terminal-shimmer 1.8s linear infinite;
+}
+
+@keyframes terminal-shimmer {
+  0% {
+    background-position: -120% 0;
+  }
+  100% {
+    background-position: 120% 0;
+  }
+}
+
 /* App layout - responsive with container queries */
 .app-layout {
   display: flex;

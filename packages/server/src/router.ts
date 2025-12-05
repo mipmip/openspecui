@@ -574,6 +574,20 @@ export const cliRouter = router({
     })
   }),
 
+  /** 流式执行任意命令（用于前端通用终端） */
+  runCommandStream: publicProcedure
+    .input(
+      z.object({
+        command: z.string(),
+        args: z.array(z.string()).default([]),
+      })
+    )
+    .subscription(({ ctx, input }) => {
+      return createCliStreamObservable(async (onEvent) =>
+        ctx.cliExecutor.executeCommandStream([input.command, ...input.args], onEvent)
+      )
+    }),
+
   /** 获取可用的工具列表（available: true） */
   getAvailableTools: publicProcedure.query(() => {
     // 返回完整的工具信息，去掉 scope 和 detectionPath（前端不需要）

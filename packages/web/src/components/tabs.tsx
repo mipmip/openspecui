@@ -23,7 +23,13 @@ interface TabsProps {
  * Hidden tabs are pre-rendered at lower priority and preserve their state.
  * Supports both controlled and uncontrolled active tab.
  */
-export function Tabs({ tabs, defaultTab, activeTab: controlled, onTabChange, className = '' }: TabsProps) {
+export function Tabs({
+  tabs,
+  defaultTab,
+  activeTab: controlled,
+  onTabChange,
+  className = '',
+}: TabsProps) {
   const [uncontrolled, setUncontrolled] = useState(defaultTab || tabs[0]?.id)
   const activeTab = controlled ?? uncontrolled
 
@@ -39,12 +45,12 @@ export function Tabs({ tabs, defaultTab, activeTab: controlled, onTabChange, cla
   return (
     <div className={`flex min-h-0 flex-1 flex-col ${className}`}>
       {/* Tab buttons */}
-      <div className="z-2 border-border flex gap-1 border-b">
+      <div className="z-2 border-border bg-background oveflow-x-auto sticky top-0 flex gap-1 border-b">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => handleChange(tab.id)}
-            className={`-mb-px flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
+            className={`-mb-px flex shrink-0 items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
               activeTab === tab.id
                 ? 'border-primary text-foreground'
                 : 'text-muted-foreground hover:text-foreground border-transparent'
@@ -57,21 +63,19 @@ export function Tabs({ tabs, defaultTab, activeTab: controlled, onTabChange, cla
       </div>
 
       {/* Tab content with Activity for state preservation */}
-        {tabs.map((tab) =>
-          tab.unmountOnHide ? (
-            activeTab === tab.id && (
+      {tabs.map((tab) =>
+        tab.unmountOnHide ? (
+          activeTab === tab.id && (
             <div key={tab.id} className="min-h-0 flex-1">
-                {tab.content}
-            </div>
-            )
-          ) : (
-            <Activity key={tab.id} mode={activeTab === tab.id ? 'visible' : 'hidden'}>
-              <div  className="min-h-0 flex-1">
               {tab.content}
-              </div>
-            </Activity>
+            </div>
           )
-        )}
+        ) : (
+          <Activity key={tab.id} mode={activeTab === tab.id ? 'visible' : 'hidden'}>
+            <div className="min-h-0 flex-1">{tab.content}</div>
+          </Activity>
+        )
+      )}
     </div>
   )
 }

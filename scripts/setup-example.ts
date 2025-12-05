@@ -146,6 +146,61 @@ const SAMPLE_CHANGE_NOTES = `# Notes
 - Extra file so the Folder tab can show non-spec assets
 `
 
+// Second sample change: session timeout improvements
+const SAMPLE_CHANGE2_ID = 'improve-session-timeout'
+
+const SAMPLE_CHANGE2_PROPOSAL = `# Change: Improve session timeout handling
+
+## Why
+- Sessions currently expire abruptly without user warning, leading to lost work.
+- Security review requests shorter idle timeout with explicit renewal path.
+
+## What Changes
+- Add pre-expiry warning and renewal flow for web clients.
+- Shorten default idle timeout to 20 minutes with configurable value.
+- Ensure re-auth uses existing auth methods (password, OAuth, 2FA when enabled).
+
+## Impact
+- Affected specs: auth
+- Affected code: web session manager, auth API, client timer hooks
+`
+
+const SAMPLE_CHANGE2_TASKS = `# Tasks: ${SAMPLE_CHANGE2_ID}
+
+## 1. Backend
+- [ ] 1.1 Add configurable idle timeout (default 20m) and expose in config
+- [ ] 1.2 Emit pre-expiry warning event 2 minutes before timeout
+
+## 2. Web
+- [ ] 2.1 Show renewal dialog on warning; retry extends session without full logout
+- [ ] 2.2 Add client heartbeat to keep-active only on user activity
+
+## 3. Quality
+- [ ] 3.1 Add unit tests for warning timing and renewal
+- [ ] 3.2 Update docs for timeout and renewal UX
+`
+
+const SAMPLE_CHANGE2_DELTA_AUTH = `# Delta for auth
+
+## ADDED Requirements
+
+### Requirement: Session Timeout Warning
+The system SHALL warn signed-in users at least 2 minutes before idle session expiry and offer renewal without losing work.
+
+#### Scenario: Warn before expiry and renew
+- **WHEN** a user's idle time reaches the warning threshold
+- **THEN** the UI SHALL display a renewal prompt and, if confirmed, refresh the session without forcing re-login (respecting 2FA if required)
+
+## MODIFIED Requirements
+
+### Requirement: Email And Password Login
+The system SHALL issue session tokens that honor the configured idle timeout and support renewal after warning.
+
+#### Scenario: Session respects configured timeout
+- **WHEN** the user signs in with email/password and stays idle beyond the configured timeout
+- **THEN** the session SHALL expire, requiring re-authentication per policy
+`
+
 const SAMPLE_PROJECT_MD = `# Example Project
 
 This is an example project for testing OpenSpec UI.
@@ -205,6 +260,10 @@ async function setup(clean = false) {
     join(EXAMPLE_DIR, 'openspec', 'changes', 'add-2fa', 'specs'),
     join(EXAMPLE_DIR, 'openspec', 'changes', 'add-2fa', 'specs', 'auth'),
     join(EXAMPLE_DIR, 'openspec', 'changes', 'add-2fa', 'specs', 'user'),
+    // second change
+    join(EXAMPLE_DIR, 'openspec', 'changes', SAMPLE_CHANGE2_ID),
+    join(EXAMPLE_DIR, 'openspec', 'changes', SAMPLE_CHANGE2_ID, 'specs'),
+    join(EXAMPLE_DIR, 'openspec', 'changes', SAMPLE_CHANGE2_ID, 'specs', 'auth'),
     join(EXAMPLE_DIR, 'openspec', 'archive'),
   ]
 
@@ -230,6 +289,13 @@ async function setup(clean = false) {
     [
       join(EXAMPLE_DIR, 'openspec', 'changes', 'add-2fa', 'specs', 'user', 'spec.md'),
       SAMPLE_DELTA_USER,
+    ],
+    // Second change files
+    [join(EXAMPLE_DIR, 'openspec', 'changes', SAMPLE_CHANGE2_ID, 'proposal.md'), SAMPLE_CHANGE2_PROPOSAL],
+    [join(EXAMPLE_DIR, 'openspec', 'changes', SAMPLE_CHANGE2_ID, 'tasks.md'), SAMPLE_CHANGE2_TASKS],
+    [
+      join(EXAMPLE_DIR, 'openspec', 'changes', SAMPLE_CHANGE2_ID, 'specs', 'auth', 'spec.md'),
+      SAMPLE_CHANGE2_DELTA_AUTH,
     ],
     // Project-level files
     [join(EXAMPLE_DIR, 'openspec', 'project.md'), SAMPLE_PROJECT_MD],

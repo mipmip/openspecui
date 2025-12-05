@@ -1,7 +1,9 @@
-import { CliTerminalModal } from '@/components/cli-terminal-modal'
+import { CliTerminal } from '@/components/cli-terminal'
 import { CopyablePath } from '@/components/copyable-path'
+import { Dialog } from '@/components/dialog'
 import { getApiBaseUrl } from '@/lib/api-config'
 import { trpc, trpcClient } from '@/lib/trpc'
+import { useCliRunner } from '@/lib/use-cli-runner'
 import { useServerStatus } from '@/lib/use-server-status'
 import { useConfigSubscription, useConfiguredToolsSubscription } from '@/lib/use-subscription'
 import { useMutation, useQuery } from '@tanstack/react-query'
@@ -22,7 +24,7 @@ import {
   WifiOff,
   XCircle,
 } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 type Theme = 'light' | 'dark' | 'system'
 
@@ -53,6 +55,31 @@ export function Settings() {
   const [showInstallModal, setShowInstallModal] = useState(false)
   const [initTools, setInitTools] = useState<string[] | 'all' | 'none'>('none')
 
+  const initRunner = useCliRunner()
+  const installRunner = useCliRunner()
+
+  const {
+    lines: initLines,
+    status: initStatus,
+    commands: initCommands,
+    cancel: cancelInit,
+    reset: resetInit,
+  } = initRunner
+
+  const initBorderVariant =
+    initStatus === 'error' ? 'error' : initStatus === 'success' ? 'success' : 'default'
+
+  const {
+    lines: installLines,
+    status: installStatus,
+    commands: installCommands,
+    cancel: cancelInstall,
+    reset: resetInstall,
+  } = installRunner
+
+  const installBorderVariant =
+    installStatus === 'error' ? 'error' : installStatus === 'success' ? 'success' : 'default'
+
   // 服务器状态（包含项目路径）
   const serverStatus = useServerStatus()
 
@@ -82,8 +109,13 @@ export function Settings() {
   const { data: allTools } = useQuery(trpc.cli.getAllTools.queryOptions())
 
   // 分组：available: true 的工具和 available: false 的工具
-  const nativeTools = allTools?.filter((t) => t.available) ?? []
-  const otherTools = allTools?.filter((t) => !t.available) ?? []
+  const nativeTools = useMemo(() => allTools?.filter((t) => t.available) ?? [], [allTools])
+  const otherTools = useMemo(() => allTools?.filter((t) => !t.available) ?? [], [allTools])
+  const cliSupportedToolIds = useMemo(() => nativeTools.map((t) => t.value), [nativeTools])
+  const cliSupportedTools = useMemo(() => new Set(cliSupportedToolIds), [cliSupportedToolIds])
+  const selectableToolIds = cliSupportedToolIds
+  const cliSupportedToolsKey = useMemo(() => cliSupportedToolIds.join('|'), [cliSupportedToolIds])
+  const lastSyncedToolsKeyRef = useRef<string>('')
 
   // 订阅已配置的工具列表（响应式）
   const { data: configuredTools } = useConfiguredToolsSubscription()
@@ -116,10 +148,13 @@ export function Settings() {
 
   // 同步已配置的工具到选中状态
   useEffect(() => {
-    if (configuredTools && configuredTools.length > 0) {
-      setSelectedTools(configuredTools)
-    }
-  }, [configuredTools])
+    if (!configuredTools || configuredTools.length === 0) return
+    const next = [...configuredTools.filter((t) => cliSupportedTools.has(t))].sort()
+    const signature = `${cliSupportedToolsKey}|${next.join(',')}`
+    if (signature === lastSyncedToolsKeyRef.current) return
+    lastSyncedToolsKeyRef.current = signature
+    setSelectedTools(next)
+  }, [configuredTools, cliSupportedToolsKey])
 
   // 打开 init modal
   const startInit = (tools: string[] | 'all' | 'none') => {
@@ -127,11 +162,40 @@ export function Settings() {
     setShowInitModal(true)
   }
 
+  // Modal lifecycle: auto start streams when打开
+  // Keep state clean when关闭
+  useEffect(() => {
+    if (!showInitModal) {
+      cancelInit()
+      resetInit()
+    }
+  }, [showInitModal, cancelInit, resetInit])
+
+  useEffect(() => {
+    if (!showInitModal) return
+    const tools = initTools
+    const toolsArg = Array.isArray(tools) ? tools.join(',') : tools
+    initCommands.replaceAll([{ command: 'openspec', args: ['init', '--tools', toolsArg] }])
+  }, [initCommands, initTools, showInitModal])
+
+  useEffect(() => {
+    if (showInstallModal) {
+      installCommands.replaceAll([
+        { command: 'npm', args: ['install', '-g', '@fission-ai/openspec'] },
+      ])
+      installCommands.runAll()
+    } else {
+      cancelInstall()
+      resetInstall()
+    }
+  }, [showInstallModal, installCommands, cancelInstall, resetInstall])
+
   // 判断工具是否已配置（不可取消）
   const isToolConfigured = (tool: string) => configuredTools?.includes(tool) ?? false
 
   // 切换工具选择（已配置的工具不能取消）
   const toggleTool = (tool: string) => {
+    if (!cliSupportedTools.has(tool)) return
     if (isToolConfigured(tool)) return // 已配置的工具不能取消
     setSelectedTools((prev) =>
       prev.includes(tool) ? prev.filter((t) => t !== tool) : [...prev, tool]
@@ -141,21 +205,35 @@ export function Settings() {
   // 全选/取消全选（保留已配置的工具）
   const toggleAllTools = () => {
     if (!allTools) return
-    const allToolIds = allTools.map((t) => t.value)
-    const unconfiguredTools = allToolIds.filter((t) => !isToolConfigured(t))
+    const selectableToolIds = allTools.filter((t) => t.available).map((t) => t.value)
+    const unconfiguredTools = selectableToolIds.filter((t) => !isToolConfigured(t))
     const allUnconfiguredSelected = unconfiguredTools.every((t) => selectedTools.includes(t))
 
     if (allUnconfiguredSelected) {
       // 取消所有未配置的工具，保留已配置的
       setSelectedTools(configuredTools ?? [])
     } else {
-      // 全选所有工具
-      setSelectedTools([...allToolIds])
+      // 全选所有可用工具
+      setSelectedTools([...selectableToolIds])
     }
   }
 
   // 计算新工具数量（未配置但已选中的）
-  const newToolsCount = selectedTools.filter((t) => !isToolConfigured(t)).length
+  const newToolsCount = selectedTools.filter(
+    (t) => cliSupportedTools.has(t) && !isToolConfigured(t)
+  ).length
+
+  const handleCloseInit = () => {
+    setShowInitModal(false)
+    cancelInit()
+    resetInit()
+  }
+
+  const handleCloseInstall = () => {
+    setShowInstallModal(false)
+    cancelInstall()
+    resetInstall()
+  }
 
   // 保存 CLI 命令配置
   const saveCliCommandMutation = useMutation({
@@ -468,7 +546,8 @@ export function Settings() {
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium">AI Tools Configuration</label>
               <button onClick={toggleAllTools} className="text-primary text-xs hover:underline">
-                {allTools && selectedTools.length === allTools.length
+                {selectedTools.filter((t) => selectableToolIds.includes(t)).length ===
+                selectableToolIds.length
                   ? 'Deselect All'
                   : 'Select All'}
               </button>
@@ -529,14 +608,22 @@ export function Settings() {
                       <button
                         key={tool.value}
                         onClick={() => toggleTool(tool.value)}
-                        disabled={configured}
-                        title={configured ? 'Already configured' : tool.name}
+                        disabled={configured || !tool.available}
+                        title={
+                          configured
+                            ? 'Already configured'
+                            : !tool.available
+                              ? 'This helper is auto-detected via AGENTS.md (no init needed)'
+                              : tool.name
+                        }
                         className={`flex items-center gap-1.5 rounded border px-2.5 py-1.5 text-xs transition-colors ${
                           configured
                             ? 'cursor-not-allowed border-green-500/50 bg-green-500/10 text-green-600'
-                            : selected
-                              ? 'border-primary bg-primary/10 text-primary'
-                              : 'border-border hover:bg-muted'
+                            : !tool.available
+                              ? 'border-border text-muted-foreground cursor-not-allowed border-dashed'
+                              : selected
+                                ? 'border-primary bg-primary/10 text-primary'
+                                : 'border-border hover:bg-muted'
                         }`}
                       >
                         {(configured || selected) && (
@@ -569,7 +656,10 @@ export function Settings() {
           {/* Init Buttons */}
           <div className="border-border flex flex-wrap gap-2 border-t pt-2">
             <button
-              onClick={() => startInit(selectedTools.length > 0 ? selectedTools : 'none')}
+              onClick={() => {
+                const tools = selectedTools.filter((t) => cliSupportedTools.has(t))
+                startInit(tools.length > 0 ? tools : 'none')
+              }}
               className="bg-primary text-primary-foreground flex items-center gap-2 rounded-md px-4 py-2 hover:opacity-90"
             >
               <FolderPlus className="h-4 w-4" />
@@ -589,39 +679,95 @@ export function Settings() {
         </div>
       </section>
 
-      {/* Init Terminal Modal */}
-      <CliTerminalModal
-        title="Initialize OpenSpec"
+      {/* Init Terminal Dialog */}
+      <Dialog
         open={showInitModal}
-        onClose={() => setShowInitModal(false)}
-        type="init"
-        initOptions={{ tools: initTools }}
-      />
+        onClose={handleCloseInit}
+        bodyClassName="max-h-[70vh]"
+        borderVariant={initBorderVariant}
+        title={
+          <div className="flex items-center gap-2">
+            <Terminal className="h-4 w-4" />
+            <span className="font-semibold">Initialize OpenSpec</span>
+          </div>
+        }
+        footer={
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleCloseInit}
+              className="bg-muted hover:bg-muted/80 rounded-md px-4 py-2 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={initStatus === 'running'}
+            >
+              Close
+            </button>
+            {initStatus !== 'success' && (
+              <button
+                onClick={() => initCommands.runAll()}
+                className="bg-primary text-primary-foreground rounded-md px-4 py-2 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={initStatus === 'running'}
+              >
+                {initStatus === 'running' ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Run init'}
+              </button>
+            )}
+          </div>
+        }
+      >
+        <CliTerminal lines={initLines} />
+      </Dialog>
 
-      {/* Install Global CLI Terminal Modal */}
-      <CliTerminalModal
-        title={cliSniffResult?.hasUpdate ? 'Update OpenSpec CLI' : 'Install OpenSpec CLI Globally'}
+      {/* Install / Update CLI Dialog */}
+      <Dialog
         open={showInstallModal}
-        onClose={() => setShowInstallModal(false)}
-        type="install-global"
-        successConfig={{
-          title: cliSniffResult?.hasUpdate ? 'Update Complete' : 'Installation Complete',
-          description: cliSniffResult?.hasUpdate
-            ? `OpenSpec CLI has been updated to v${cliSniffResult.latestVersion}. You can now use the latest features.`
-            : 'OpenSpec CLI has been installed globally. You can now use the "openspec" command from anywhere.',
-          actions: [
-            {
-              label: 'Close',
-              onClick: () => setShowInstallModal(false),
-            },
-            {
-              label: 'Re-detect CLI',
-              onClick: handleInstallSuccess,
-              primary: true,
-            },
-          ],
-        }}
-      />
+        onClose={handleCloseInstall}
+        bodyClassName="max-h-[70vh]"
+        borderVariant={installBorderVariant}
+        title={
+          <div className="flex items-center gap-2">
+            <Download className="h-4 w-4" />
+            <span className="font-semibold">
+              {cliSniffResult?.hasUpdate ? 'Update OpenSpec CLI' : 'Install OpenSpec CLI Globally'}
+            </span>
+          </div>
+        }
+        footer={
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleCloseInstall}
+              className="bg-muted hover:bg-muted/80 rounded-md px-4 py-2 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={installStatus === 'running'}
+            >
+              Close
+            </button>
+            <button
+              onClick={() => {
+                handleCloseInstall()
+                handleInstallSuccess()
+              }}
+              className="bg-primary text-primary-foreground rounded-md px-4 py-2 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={installStatus !== 'success'}
+            >
+              Re-detect CLI
+            </button>
+          </div>
+        }
+      >
+        <CliTerminal lines={installLines} />
+
+        {installStatus === 'success' && (
+          <div className="border-border bg-muted/40 mt-3 rounded border px-3 py-2 text-sm">
+            <div className="flex items-center gap-2 text-green-600">
+              <CheckCircle className="h-4 w-4" />
+              {cliSniffResult?.hasUpdate
+                ? `OpenSpec CLI updated to v${cliSniffResult?.latestVersion ?? ''}`
+                : 'OpenSpec CLI installed globally'}
+            </div>
+            <p className="text-muted-foreground text-xs">
+              You can now run the "openspec" command directly. Click "Re-detect CLI" to refresh
+              status.
+            </p>
+          </div>
+        )}
+      </Dialog>
     </div>
   )
 }
