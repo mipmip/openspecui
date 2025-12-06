@@ -1,6 +1,7 @@
 import { ChangeOverview } from '@/components/change-overview'
 import { FolderEditorViewer } from '@/components/folder-editor-viewer'
 import { Tabs, type Tab } from '@/components/tabs'
+import { useTabsStatusByQuery } from '@/lib/use-tabs-status-by-query'
 import { TasksView } from '@/components/tasks-view'
 import { useArchiveSubscription } from '@/lib/use-subscription'
 import { getRouteApi, Link } from '@tanstack/react-router'
@@ -54,6 +55,12 @@ export function ArchiveView() {
     return result
   }, [change, changeId])
 
+  const { selectedTab, setSelectedTab } = useTabsStatusByQuery({
+    tabsId: 'archiveTab',
+    tabs,
+    initialTab: tabs[0]?.id,
+  })
+
   if (loading) {
     return <div className="route-loading animate-pulse">Loading archived change...</div>
   }
@@ -98,7 +105,12 @@ export function ArchiveView() {
       </div>
 
       {/* Tabs with Activity for state preservation */}
-      <Tabs tabs={tabs} defaultTab={tabs[0]?.id} className="min-h-0 flex-1 gap-6" />
+      <Tabs
+        tabs={tabs}
+        selectedTab={selectedTab}
+        onTabChange={setSelectedTab}
+        className="min-h-0 flex-1 gap-6"
+      />
     </div>
   )
 }

@@ -148,8 +148,7 @@ function DeltaSpecTabs({
   return (
     <Tabs
       tabs={tabs}
-      activeTab={activeId}
-      defaultTab={activeId}
+      selectedTab={activeId}
       onTabChange={onActiveChange}
       className="min-h-80"
     />

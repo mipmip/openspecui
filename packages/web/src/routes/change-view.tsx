@@ -1,6 +1,7 @@
 import { ChangeOverview } from '@/components/change-overview'
 import { FolderEditorViewer } from '@/components/folder-editor-viewer'
 import { Tabs, type Tab } from '@/components/tabs'
+import { useTabsStatusByQuery } from '@/lib/use-tabs-status-by-query'
 import { TasksView } from '@/components/tasks-view'
 import { useArchiveModal } from '@/lib/archive-modal-context'
 import { trpcClient } from '@/lib/trpc'
@@ -105,6 +106,12 @@ export function ChangeView() {
     ]
   }, [change, changeId, handleToggleTask, togglingIndex])
 
+  const { selectedTab, setSelectedTab } = useTabsStatusByQuery({
+    tabsId: 'changeTab',
+    tabs,
+    initialTab: tabs[0]?.id,
+  })
+
   if (firstFrameLoading || (isLoading && !change)) {
     return <div className="route-loading animate-pulse">Loading change...</div>
   }
@@ -166,7 +173,12 @@ export function ChangeView() {
         </div>
       )}
 
-      <Tabs tabs={tabs} defaultTab={tabs[0]?.id} className="min-h-0 flex-1 gap-6" />
+      <Tabs
+        tabs={tabs}
+        selectedTab={selectedTab}
+        onTabChange={setSelectedTab}
+        className="min-h-0 flex-1 gap-6"
+      />
     </div>
   )
 }

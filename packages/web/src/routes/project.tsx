@@ -1,11 +1,11 @@
 import { CodeEditor } from '@/components/code-editor'
 import { MarkdownViewer } from '@/components/markdown-viewer'
+import { Tabs, type Tab } from '@/components/tabs'
 import { trpcClient } from '@/lib/trpc'
 import { useAgentsMdSubscription, useProjectMdSubscription } from '@/lib/use-subscription'
 import { useMutation } from '@tanstack/react-query'
 import { Bot, Edit2, FileText, Folder, Save, X } from 'lucide-react'
-import { Activity, useState } from 'react'
-import { useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 type ActiveTab = 'project' | 'agents'
 
@@ -57,25 +57,90 @@ export function Project() {
     setEditContent('')
   }
 
-  const tabs: { id: ActiveTab; label: string; icon: React.ReactNode }[] = [
-    { id: 'project', label: 'project.md', icon: <FileText className="h-4 w-4" /> },
-    { id: 'agents', label: 'AGENTS.md', icon: <Bot className="h-4 w-4" /> },
-  ]
+  const tabs: Tab[] = useMemo(
+    () => [
+      {
+        id: 'project',
+        label: 'project.md',
+        icon: <FileText className="h-4 w-4" />,
+        content: (
+          <div className="border-border min-h-0 flex-1 overflow-hidden rounded-lg border">
+            <TabContent
+              content={projectMd}
+              isLoading={projectLoading}
+              isEditing={editingTab === 'project'}
+              editContent={editContent}
+              setEditContent={setEditContent}
+              onCancel={handleCancel}
+              onSave={handleSave}
+              savePending={saveProjectMutation.isPending}
+              tabName="project.md"
+              defaultContent="# Project Context\n\n## Purpose\n\n## Tech Stack\n\n## Conventions\n"
+              onStartEdit={() => {
+                setEditContent(projectMd || '')
+                setEditingTab('project')
+              }}
+            />
+          </div>
+        ),
+      },
+      {
+        id: 'agents',
+        label: 'AGENTS.md',
+        icon: <Bot className="h-4 w-4" />,
+        content: (
+          <div className="border-border min-h-0 flex-1 overflow-hidden rounded-lg border">
+            <TabContent
+              content={agentsMd}
+              isLoading={agentsLoading}
+              isEditing={editingTab === 'agents'}
+              editContent={editContent}
+              setEditContent={setEditContent}
+              onCancel={handleCancel}
+              onSave={handleSave}
+              savePending={saveAgentsMutation.isPending}
+              tabName="AGENTS.md"
+              defaultContent="# AI Agent Instructions\n\n## Workflow\n\n## Commands\n"
+              onStartEdit={() => {
+                setEditContent(agentsMd || '')
+                setEditingTab('agents')
+              }}
+            />
+          </div>
+        ),
+      },
+    ],
+    [
+      agentsLoading,
+      agentsMd,
+      editContent,
+      editingTab,
+      handleCancel,
+      handleSave,
+      projectLoading,
+      projectMd,
+      saveAgentsMutation.isPending,
+      saveProjectMutation.isPending,
+    ]
+  )
 
-  const descriptions: Record<ActiveTab, React.ReactNode> = {
-    project: (
-      <p>
-        <strong>project.md</strong> defines project context, tech stack, and conventions for AI
-        assistants.
-      </p>
-    ),
-    agents: (
-      <p>
-        <strong>AGENTS.md</strong> provides workflow instructions for AI coding assistants using
-        OpenSpec.
-      </p>
-    ),
-  }
+  const descriptions: Record<ActiveTab, React.ReactNode> = useMemo(
+    () => ({
+      project: (
+        <p>
+          <strong>project.md</strong> defines project context, tech stack, and conventions for AI
+          assistants.
+        </p>
+      ),
+      agents: (
+        <p>
+          <strong>AGENTS.md</strong> provides workflow instructions for AI coding assistants using
+          OpenSpec.
+        </p>
+      ),
+    }),
+    []
+  )
 
   if (projectLoading || agentsLoading) {
     return <div className="route-loading animate-pulse">Loading...</div>
@@ -103,63 +168,12 @@ export function Project() {
         )}
       </div>
 
-      {/* Tabs */}
-      <div className="border-border flex gap-1 border-b">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`-mb-px flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
-              activeTab === tab.id
-                ? 'border-primary text-foreground'
-                : 'text-muted-foreground hover:text-foreground border-transparent'
-            }`}
-          >
-            {tab.icon}
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Content with Activity for state preservation */}
-      <div className="border-border min-h-0 flex-1 overflow-hidden rounded-lg border">
-        <Activity mode={activeTab === 'project' ? 'visible' : 'hidden'}>
-          <TabContent
-            content={projectMd}
-            isLoading={projectLoading}
-            isEditing={editingTab === 'project'}
-            editContent={editContent}
-            setEditContent={setEditContent}
-            onCancel={handleCancel}
-            onSave={handleSave}
-            savePending={saveProjectMutation.isPending}
-            tabName="project.md"
-            defaultContent="# Project Context\n\n## Purpose\n\n## Tech Stack\n\n## Conventions\n"
-            onStartEdit={() => {
-              setEditContent(projectMd || '')
-              setEditingTab('project')
-            }}
-          />
-        </Activity>
-        <Activity mode={activeTab === 'agents' ? 'visible' : 'hidden'}>
-          <TabContent
-            content={agentsMd}
-            isLoading={agentsLoading}
-            isEditing={editingTab === 'agents'}
-            editContent={editContent}
-            setEditContent={setEditContent}
-            onCancel={handleCancel}
-            onSave={handleSave}
-            savePending={saveAgentsMutation.isPending}
-            tabName="AGENTS.md"
-            defaultContent="# AI Agent Instructions\n\n## Workflow\n\n## Commands\n"
-            onStartEdit={() => {
-              setEditContent(agentsMd || '')
-              setEditingTab('agents')
-            }}
-          />
-        </Activity>
-      </div>
+      <Tabs
+        tabs={tabs}
+        selectedTab={activeTab}
+        onTabChange={(id) => setActiveTab(id as ActiveTab)}
+        className="min-h-0 flex-1 gap-4"
+      />
 
       {/* Description */}
       <div className="text-muted-foreground text-sm">{descriptions[activeTab]}</div>

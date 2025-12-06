@@ -11,9 +11,8 @@ export interface Tab {
 
 interface TabsProps {
   tabs: Tab[]
-  defaultTab?: string
-  /** Controlled active tab id */
-  activeTab?: string
+  /** Controlled selected tab id */
+  selectedTab?: string
   onTabChange?: (id: string) => void
   className?: string
 }
@@ -25,15 +24,12 @@ interface TabsProps {
  */
 export function Tabs({
   tabs,
-  defaultTab,
-  activeTab: controlled,
+  selectedTab: controlled,
   onTabChange,
   className = '',
 }: TabsProps) {
-  const [uncontrolled, setUncontrolled] = useState(defaultTab || tabs[0]?.id)
+  const [uncontrolled, setUncontrolled] = useState<string>(tabs[0]?.id ?? '')
   const activeTab = controlled ?? uncontrolled
-
-  if (tabs.length === 0) return null
 
   const handleChange = (id: string) => {
     if (!controlled) {
@@ -41,6 +37,8 @@ export function Tabs({
     }
     onTabChange?.(id)
   }
+
+  if (tabs.length === 0) return null
 
   return (
     <div className={`flex min-h-0 flex-1 flex-col ${className}`}>
