@@ -1,4 +1,4 @@
-import { Activity, useState, type ReactNode } from 'react'
+import { Activity, useId, useMemo, useState, type ReactNode } from 'react'
 
 export interface Tab {
   id: string
@@ -17,17 +17,84 @@ interface TabsProps {
   className?: string
 }
 
+const tabsStyle = (id: string) => {
+  const css = String.raw
+  const anchorName = `--tabs-button-${id}`
+  return (
+    <style>
+      {css`
+        #${id} {
+          .tabs-button {
+            anchor-name: ${anchorName};
+          }
+          .tabs-button::scroll-button(*) {
+            position-anchor: ${anchorName};
+          }
+        }
+      ` +
+        css`
+          #${id} {
+            .tabs-button {
+              overflow-x: auto;
+              scroll-behavior: smooth;
+              overscroll-behavior-x: contain;
+              scroll-snap-type: x mandatory;
+              position: relative;
+              background-image: linear-gradient(
+                to bottom,
+                transparent,
+                transparent calc(100% - 1px),
+                var(--border) calc(100% - 1px),
+                var(--border)
+              );
+              & > button {
+                scroll-snap-align: start;
+                text-align: center;
+                &.tab-selected {
+                  background-image: linear-gradient(
+                    to bottom,
+                    transparent,
+                    transparent calc(100% - 2px),
+                    var(--primary) calc(100% - 2px),
+                    var(--primary)
+                  );
+                }
+              }
+            }
+            .tabs-button::scroll-button(*) {
+              position: absolute;
+              align-self: anchor-center;
+              border: 0;
+              font-size: 1.2rem;
+              background: none;
+              z-index: 2;
+            }
+            .tabs-button::scroll-button(*):disabled {
+              opacity: 0;
+            }
+            .tabs-button::scroll-button(left) {
+              content: '◄';
+              right: calc(anchor(left) - 0.5rem);
+              transform: scaleX(0.5);
+            }
+
+            .tabs-button::scroll-button(right) {
+              content: '►';
+              left: calc(anchor(right) - 0.5rem);
+              transform: scaleX(0.5);
+            }
+          }
+        `}
+    </style>
+  )
+}
+
 /**
  * Tabs component with React 19 Activity for state preservation.
  * Hidden tabs are pre-rendered at lower priority and preserve their state.
  * Supports both controlled and uncontrolled active tab.
  */
-export function Tabs({
-  tabs,
-  selectedTab: controlled,
-  onTabChange,
-  className = '',
-}: TabsProps) {
+export function Tabs({ tabs, selectedTab: controlled, onTabChange, className = '' }: TabsProps) {
   const [uncontrolled, setUncontrolled] = useState<string>(tabs[0]?.id ?? '')
   const activeTab = controlled ?? uncontrolled
 
@@ -40,18 +107,23 @@ export function Tabs({
 
   if (tabs.length === 0) return null
 
+  const id = useId()
+
+  const style = useMemo(() => tabsStyle(id), [id])
+
   return (
-    <div className={`flex min-h-0 flex-1 flex-col ${className}`}>
+    <div id={id} className={`flex min-h-0 flex-1 flex-col ${className}`}>
+      {style}
       {/* Tab buttons */}
-      <div className="z-2 border-border bg-background oveflow-x-auto sticky top-0 flex gap-1 border-b">
+      <div className="tabs-button z-2 bg-background oveflow-x-auto scrollbar-none sticky top-0 flex gap-1">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => handleChange(tab.id)}
-            className={`-mb-px flex shrink-0 items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
+            className={`m-0 flex h-full shrink-0 items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${
               activeTab === tab.id
-                ? 'border-primary text-foreground'
-                : 'text-muted-foreground hover:text-foreground border-transparent'
+                ? 'tab-selected text-foreground'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             {tab.icon}

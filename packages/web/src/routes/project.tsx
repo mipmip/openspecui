@@ -64,7 +64,7 @@ export function Project() {
         label: 'project.md',
         icon: <FileText className="h-4 w-4" />,
         content: (
-          <div className="border-border min-h-0 flex-1 overflow-hidden rounded-lg border">
+          <div className="border-border h-full min-h-0 flex-1 overflow-hidden rounded-lg border">
             <TabContent
               content={projectMd}
               isLoading={projectLoading}
@@ -89,7 +89,7 @@ export function Project() {
         label: 'AGENTS.md',
         icon: <Bot className="h-4 w-4" />,
         content: (
-          <div className="border-border min-h-0 flex-1 overflow-hidden rounded-lg border">
+          <div className="border-border h-full min-h-0 flex-1 overflow-hidden rounded-lg border">
             <TabContent
               content={agentsMd}
               isLoading={agentsLoading}

@@ -1,6 +1,6 @@
-import { memo, useMemo } from 'react'
-import { CheckCircle, Circle, Loader2 } from 'lucide-react'
 import { TocSection, type TocItem } from '@/components/toc'
+import { CheckCircle, Circle, Loader2 } from 'lucide-react'
+import { memo, useMemo } from 'react'
 
 /** Task item structure from @openspecui/core */
 export interface Task {
@@ -39,7 +39,10 @@ function groupTasksBySection(tasks: Task[]): TaskGroup[] {
 
 /** Generate a stable ID for a section name */
 export function sectionToId(section: string): string {
-  return `section-${section.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`
+  return `section-${section
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')}`
 }
 
 /** Build ToC items for task sections */
@@ -64,30 +67,26 @@ const TaskItem = memo(
     const content = (
       <>
         {isToggling ? (
-          <Loader2 className="w-5 h-5 text-primary shrink-0 animate-spin" />
+          <Loader2 className="text-primary h-5 w-5 shrink-0 animate-spin" />
         ) : task.completed ? (
-          <CheckCircle className="w-5 h-5 text-green-500 shrink-0" />
+          <CheckCircle className="h-5 w-5 shrink-0 text-green-500" />
         ) : (
-          <Circle className="w-5 h-5 text-muted-foreground shrink-0 group-hover:text-primary" />
+          <Circle className="text-muted-foreground group-hover:text-primary h-5 w-5 shrink-0" />
         )}
-        <span className={task.completed ? 'line-through text-muted-foreground' : ''}>
+        <span className={`text-sm ${task.completed ? 'text-muted-foreground line-through' : ''}`}>
           {task.text}
         </span>
       </>
     )
 
     if (readonly || !onToggle) {
-      return (
-        <div className="w-full p-3 flex items-center gap-3 text-left">
-          {content}
-        </div>
-      )
+      return <div className="flex w-full items-center gap-3 p-3 text-left">{content}</div>
     }
 
     return (
       <button
         onClick={() => onToggle(taskIndex, !task.completed)}
-        className="group w-full p-3 flex items-center gap-3 hover:bg-muted/50 transition-colors text-left"
+        className="hover:bg-muted/50 group flex w-full items-center gap-3 p-3 text-left transition-colors"
       >
         {content}
       </button>
@@ -141,14 +140,14 @@ export function TasksView({
 
   return (
     <TocSection id="tasks" index={tocBaseIndex}>
-      <div className="flex items-center justify-between mb-3">
+      <div className="mb-3 flex items-center justify-between">
         <h2 className="text-lg font-semibold">
           Tasks ({progress.completed}/{progress.total})
         </h2>
-        <span className="text-sm text-muted-foreground">{progressPercent}%</span>
+        <span className="text-muted-foreground text-sm">{progressPercent}%</span>
       </div>
 
-      <div className="w-full bg-muted rounded-full h-2 mb-4">
+      <div className="bg-muted mb-4 h-2 w-full rounded-full">
         <div
           className="bg-primary h-2 rounded-full transition-all"
           style={{ width: `${progressPercent}%` }}
@@ -169,13 +168,13 @@ export function TasksView({
               index={tocBaseIndex + 1 + groupIndex}
               as="div"
             >
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-medium text-foreground">{group.section}</h3>
-                <span className="text-xs text-muted-foreground">
+              <div className="mb-2 flex items-center justify-between">
+                <h3 className="text-foreground font-medium">{group.section}</h3>
+                <span className="text-muted-foreground text-xs">
                   {group.completed}/{group.total} ({sectionPercent}%)
                 </span>
               </div>
-              <div className="border border-border rounded-lg divide-y divide-border">
+              <div className="border-border divide-border divide-y rounded-lg border">
                 {group.tasks.map((task, taskIndexInGroup) => {
                   const taskIndex = getTaskIndex(groupIndex, taskIndexInGroup)
                   return (
@@ -194,7 +193,7 @@ export function TasksView({
           )
         })}
         {taskGroups.length === 0 && (
-          <div className="p-4 text-muted-foreground text-center border border-border rounded-lg">
+          <div className="text-muted-foreground border-border rounded-lg border p-4 text-center">
             No tasks defined
           </div>
         )}
