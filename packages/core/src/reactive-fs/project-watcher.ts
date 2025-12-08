@@ -82,6 +82,10 @@ export class ProjectWatcher {
   private healthCheckPending = false
   private enableHealthCheck: boolean
 
+  // 错误恢复相关
+  private reinitializeTimer: NodeJS.Timeout | null = null
+  private reinitializePending = false
+
   constructor(
     projectDir: string,
     options: {
@@ -118,7 +122,7 @@ export class ProjectWatcher {
       this.projectDir,
       (err, events) => {
         if (err) {
-          console.error('[ProjectWatcher] Error:', err)
+          this.handleWatcherError(err)
           return
         }
         this.handleEvents(events)
@@ -133,6 +137,50 @@ export class ProjectWatcher {
     if (this.enableHealthCheck) {
       this.startHealthCheck()
     }
+  }
+
+  /**
+   * 处理 watcher 错误
+   * 对于 FSEvents dropped 错误，触发延迟重建
+   */
+  private handleWatcherError(err: Error): void {
+    const errorMsg = err.message || String(err)
+
+    // 检测 FSEvents dropped 错误
+    if (errorMsg.includes('Events were dropped')) {
+      // 只在首次检测到时打印警告
+      if (!this.reinitializePending) {
+        console.warn('[ProjectWatcher] FSEvents dropped events, scheduling reinitialize...')
+        this.scheduleReinitialize()
+      }
+      // 后续重复错误静默处理，避免刷屏
+      return
+    }
+
+    // 其他错误正常打印
+    console.error('[ProjectWatcher] Error:', err)
+  }
+
+  /**
+   * 延迟重建 watcher（防抖，避免频繁重建）
+   */
+  private scheduleReinitialize(): void {
+    if (this.reinitializePending) return
+
+    this.reinitializePending = true
+
+    // 清理现有定时器
+    if (this.reinitializeTimer) {
+      clearTimeout(this.reinitializeTimer)
+    }
+
+    // 延迟 1 秒后重建，给 FSEvents 一些恢复时间
+    this.reinitializeTimer = setTimeout(() => {
+      this.reinitializeTimer = null
+      this.reinitializePending = false
+      console.log('[ProjectWatcher] Reinitializing due to FSEvents error...')
+      this.reinitialize()
+    }, 1000)
   }
 
   /**
@@ -405,6 +453,12 @@ export class ProjectWatcher {
       clearTimeout(this.debounceTimer)
       this.debounceTimer = null
     }
+
+    if (this.reinitializeTimer) {
+      clearTimeout(this.reinitializeTimer)
+      this.reinitializeTimer = null
+    }
+    this.reinitializePending = false
 
     if (this.subscription) {
       await this.subscription.unsubscribe()

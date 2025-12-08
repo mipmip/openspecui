@@ -804,3 +804,16 @@ useEffect(() => {
 等一下，我看到 use-cli-stream-runner  的代码！天啊，这是在太糟糕了，怎么能耦合各种命令的执行呢！
 请你立刻重构！按照我的思路，做好在前端运行任意终端命令的功能。你要做的，绝对不可以出现use-cli-stream-runner 这种把全部的命令全部耦合在一个 CliRunnerConfig 中的行为。
 这违反了我的工程实践规范。
+
+---
+
+还需要继续改进你的代码：TerminalLine这个设计有一个问题，它导致cli-terminal 作为一个渲染器，失去了独立性。
+1. cli-terminal 是独立的，输入参数仍然是lines。有两种类型：ascii / html
+2. 我需要你丰富ascii的渲染格式
+3. html的渲染，内容就是ReactNode节点
+
+这样的设计，useCliRunner就可以自己闭环所有的渲染
+
+---
+
+我在使用的时候，会遇到持续这个日志：`[ProjectWatcher] Error: [Error: Events were dropped by the FSEvents client. File system must be re-scanned.]`，这个正常吗？
