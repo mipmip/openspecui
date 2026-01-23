@@ -110,14 +110,15 @@ async function main(): Promise<void> {
       }
     )
     .command(
-      'export [output-dir]',
+      'export',
       'Export OpenSpec UI as a static website',
       (yargs) => {
         return yargs
-          .positional('output-dir', {
+          .option('output', {
+            alias: 'o',
             describe: 'Output directory for static export',
             type: 'string',
-            default: './openspec-export',
+            demandOption: true,
           })
           .option('dir', {
             alias: 'd',
@@ -142,13 +143,26 @@ async function main(): Promise<void> {
       },
       async (argv) => {
         const projectDir = resolve(originalCwd, argv.dir || '.')
-        const outputDir = argv['output-dir'] || './openspec-export'
+        const outputDir = argv.output
+
+        // Normalize base path: ensure it starts and ends with /
+        let basePath = argv['base-path'] || '/'
+        if (basePath !== '/') {
+          // Ensure starts with /
+          if (!basePath.startsWith('/')) {
+            basePath = '/' + basePath
+          }
+          // Ensure ends with /
+          if (!basePath.endsWith('/')) {
+            basePath = basePath + '/'
+          }
+        }
 
         try {
           await exportStaticSite({
             projectDir,
             outputDir,
-            basePath: argv['base-path'],
+            basePath,
             clean: argv.clean,
           })
 
@@ -169,10 +183,10 @@ async function main(): Promise<void> {
     .example('$0', 'Start server in current directory')
     .example('$0 ./my-project', 'Start server with specific project')
     .example('$0 -p 8080', 'Start server on custom port')
-    .example('$0 export', 'Export to ./openspec-export/')
-    .example('$0 export ./dist', 'Export to custom directory')
-    .example('$0 export --base-path=/docs/', 'Export for subdirectory deployment')
-    .example('$0 export --clean', 'Clean output directory before export')
+    .example('$0 export -o ./dist', 'Export to ./dist directory')
+    .example('$0 export --output ./public', 'Export to ./public directory')
+    .example('$0 export -o ./dist --base-path=/docs/', 'Export for subdirectory deployment')
+    .example('$0 export -o ./dist --clean', 'Clean output directory before export')
     .version(getVersion())
     .alias('v', 'version')
     .help()

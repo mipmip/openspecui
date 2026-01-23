@@ -12,13 +12,17 @@ GitHub issue #7 requests this capability to enable CI workflow integration.
 
 ## What Changes
 
-- Add `openspecui export [output-dir]` CLI command that generates a static website
+- Add `openspecui export -o <output-dir>` CLI command that generates a static website
 - Pre-render all routes (dashboard, specs, changes, archive) at build time
 - Generate standalone HTML files that work without a WebSocket server
 - Support dynamic routes by enumerating specs and changes at export time
 - Include all assets (CSS, JS, fonts) as self-contained bundles
 - Provide fallback for interactive features that require server connectivity
 - Document export workflow for CI integration (GitHub Actions example)
+- Support custom base paths with automatic normalization (e.g., `/docs`, `/docs/`, `docs` all normalize to `/docs/`)
+- Configure router with base path for proper client-side navigation
+- Reference all assets (including logos) relative to the configured base path
+- Suppress file watcher warnings during static export mode
 
 ### Static Mode Implementation Details
 

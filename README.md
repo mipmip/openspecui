@@ -76,14 +76,14 @@ The UI will open at `http://localhost:3100`.
 ### CLI Options
 
 ```
-Usage: openspecui [command] [options] [project-dir]
+Usage: openspecui [command] [options]
 
 Commands:
-  openspecui [project-dir]        Start the development server (default)
+  openspecui [project-dir]     Start the development server (default)
   openspecui start [project-dir]  Start the development server
-  openspecui export [output-dir]  Export as a static website
+  openspecui export            Export as a static website
 
-Options:
+Start Options:
   -p, --port <port>       Port to run the server on (default: 3100)
   -d, --dir <path>        Project directory containing openspec/
   --no-open               Don't automatically open the browser
@@ -91,8 +91,11 @@ Options:
   -v, --version           Show version number
 
 Export Options:
+  -o, --output <path>     Output directory (required)
+  -d, --dir <path>        Project directory containing openspec/
   --base-path <path>      Base path for deployment (default: /)
   --clean                 Clean output directory before export
+  --open                  Open exported site in browser after export
 ```
 
 ### Static Export
@@ -100,17 +103,24 @@ Export Options:
 Export your OpenSpec project as a static website for deployment to GitHub Pages, Netlify, or any static hosting service.
 
 ```bash
-# Export to default directory (./openspec-export/)
-openspecui export
+# Export to a directory (output directory is required)
+openspecui export -o ./dist
 
-# Export to custom directory
-openspecui export ./dist
+# Export with long form
+openspecui export --output ./my-docs
 
-# Export for subdirectory deployment
-openspecui export --base-path=/docs/
+# Export for subdirectory deployment (automatically normalized)
+openspecui export -o ./dist --base-path /docs
+# Note: /docs, /docs/, and docs all normalize to /docs/
 
 # Clean output directory before export
-openspecui export --clean
+openspecui export -o ./dist --clean
+
+# Export from a different project directory
+openspecui export -o ./dist --dir ../my-project
+
+# Combine options
+openspecui export -o ./dist --base-path /specs --clean
 ```
 
 The exported site includes:
@@ -131,7 +141,7 @@ The exported site includes:
 
 ```bash
 # Export the site
-openspecui export ./test-output --clean
+openspecui export -o ./test-output --clean
 
 # Serve it locally with any static server
 cd test-output
@@ -165,7 +175,7 @@ jobs:
         with:
           node-version: '20'
       - run: npm install -g openspecui
-      - run: openspecui export ./dist
+      - run: openspecui export -o ./dist
       - uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -190,12 +200,38 @@ jobs:
       - uses: cachix/install-nix-action@v27
         with:
           nix_path: nixpkgs=channel:nixos-unstable
-      - run: nix run github:jixoai-labs/openspecui -- export ./dist
+      - run: nix run github:jixoai-labs/openspecui -- export -o ./dist
       - uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
 ```
+
+#### Deploy to Subdirectory (e.g., /docs/)
+
+If you're deploying to a subdirectory, use the `--base-path` option:
+
+```bash
+# Export with base path
+openspecui export -o ./dist --base-path /docs
+
+# The base path is automatically normalized:
+# /docs   -> /docs/
+# /docs/  -> /docs/
+# docs    -> /docs/
+```
+
+**GitHub Pages example:**
+
+```yaml
+- run: openspecui export -o ./dist --base-path /my-repo
+```
+
+**Important:** When using a custom base path:
+
+- All assets and navigation will be prefixed with the base path
+- The exported site must be served from that path (e.g., `https://example.com/docs/`)
+- Direct URL access will work correctly (e.g., `https://example.com/docs/specs/my-spec`)
 
 ### Project Structure
 
@@ -327,14 +363,14 @@ pnpm dev
 ### 命令行选项
 
 ```
-用法: openspecui [命令] [选项] [项目目录]
+用法: openspecui [命令] [选项]
 
 命令:
-  openspecui [项目目录]        启动开发服务器（默认）
+  openspecui [项目目录]     启动开发服务器（默认）
   openspecui start [项目目录]  启动开发服务器
-  openspecui export [输出目录] 导出为静态网站
+  openspecui export         导出为静态网站
 
-选项:
+启动选项:
   -p, --port <端口>       服务器端口（默认: 3100）
   -d, --dir <路径>        包含 openspec/ 的项目目录
   --no-open               不自动打开浏览器
@@ -342,8 +378,11 @@ pnpm dev
   -v, --version           显示版本号
 
 导出选项:
+  -o, --output <路径>     输出目录（必需）
+  -d, --dir <路径>        包含 openspec/ 的项目目录
   --base-path <路径>      部署的基础路径（默认: /）
   --clean                 导出前清理输出目录
+  --open                  导出后在浏览器中打开
 ```
 
 ### 静态导出
@@ -351,17 +390,24 @@ pnpm dev
 将您的 OpenSpec 项目导出为静态网站，可部署到 GitHub Pages、Netlify 或任何静态托管服务。
 
 ```bash
-# 导出到默认目录 (./openspec-export/)
-openspecui export
+# 导出到目录（输出目录为必需参数）
+openspecui export -o ./dist
 
-# 导出到自定义目录
-openspecui export ./dist
+# 使用完整格式
+openspecui export --output ./my-docs
 
-# 为子目录部署导出
-openspecui export --base-path=/docs/
+# 为子目录部署导出（自动规范化）
+openspecui export -o ./dist --base-path /docs
+# 注意: /docs, /docs/, 和 docs 都会规范化为 /docs/
 
 # 导出前清理输出目录
-openspecui export --clean
+openspecui export -o ./dist --clean
+
+# 从不同的项目目录导出
+openspecui export -o ./dist --dir ../my-project
+
+# 组合选项
+openspecui export -o ./dist --base-path /specs --clean
 ```
 
 导出的网站包含：
@@ -382,7 +428,7 @@ openspecui export --clean
 
 ```bash
 # 导出网站
-openspecui export ./test-output --clean
+openspecui export -o ./test-output --clean
 
 # 使用任何静态服务器本地提供服务
 cd test-output
@@ -416,7 +462,7 @@ jobs:
         with:
           node-version: '20'
       - run: npm install -g openspecui
-      - run: openspecui export ./dist
+      - run: openspecui export -o ./dist
       - uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -441,12 +487,38 @@ jobs:
       - uses: cachix/install-nix-action@v27
         with:
           nix_path: nixpkgs=channel:nixos-unstable
-      - run: nix run github:jixoai-labs/openspecui -- export ./dist
+      - run: nix run github:jixoai-labs/openspecui -- export -o ./dist
       - uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
 ```
+
+#### 部署到子目录（例如 /docs/）
+
+如果要部署到子目录，请使用 `--base-path` 选项：
+
+```bash
+# 使用基础路径导出
+openspecui export -o ./dist --base-path /docs
+
+# 基础路径会自动规范化：
+# /docs   -> /docs/
+# /docs/  -> /docs/
+# docs    -> /docs/
+```
+
+**GitHub Pages 示例：**
+
+```yaml
+- run: openspecui export -o ./dist --base-path /my-repo
+```
+
+**重要说明：** 使用自定义基础路径时：
+
+- 所有资源和导航都将以基础路径为前缀
+- 导出的网站必须从该路径提供服务（例如 `https://example.com/docs/`）
+- 直接 URL 访问将正常工作（例如 `https://example.com/docs/specs/my-spec`）
 
 ### 项目结构
 
