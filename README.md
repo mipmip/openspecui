@@ -20,6 +20,8 @@ A visual web interface for spec-driven development with OpenSpec.
 
 ### Quick Start
 
+#### Via npm (all platforms)
+
 ```bash
 # Install globally
 npm install -g openspecui
@@ -29,6 +31,44 @@ openspecui
 
 # Or specify a directory
 openspecui ./my-project
+```
+
+#### Via Nix (Linux, macOS)
+
+If you use the Nix package manager:
+
+```bash
+# Run without installation
+nix run github:jixoai-labs/openspecui
+
+# Run with arguments
+nix run github:jixoai-labs/openspecui -- --help
+nix run github:jixoai-labs/openspecui -- ./my-project
+
+# Install to user profile
+nix profile install github:jixoai-labs/openspecui
+openspecui  # Now available in PATH
+```
+
+**Add to NixOS configuration:**
+
+```nix
+{
+  inputs.openspecui.url = "github:jixoai-labs/openspecui";
+
+  environment.systemPackages = [
+    inputs.openspecui.packages.${system}.default
+  ];
+}
+```
+
+**Development shell:**
+
+```bash
+# Enter development environment with all dependencies
+nix develop
+pnpm install
+pnpm dev
 ```
 
 The UI will open at `http://localhost:3100`.
@@ -106,6 +146,8 @@ Look for the "📸 Static Snapshot" banner at the top to confirm static mode is 
 
 #### Deploy to GitHub Pages
 
+**Using npm:**
+
 ```yaml
 # .github/workflows/deploy-specs.yml
 name: Deploy Specs
@@ -124,6 +166,31 @@ jobs:
           node-version: '20'
       - run: npm install -g openspecui
       - run: openspecui export ./dist
+      - uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+```
+
+**Using Nix:**
+
+```yaml
+# .github/workflows/deploy-specs.yml
+name: Deploy Specs
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - run: nix run github:jixoai-labs/openspecui -- export ./dist
       - uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -204,6 +271,8 @@ OpenSpec 规范驱动开发的可视化 Web 界面。
 
 ### 快速开始
 
+#### 通过 npm（所有平台）
+
 ```bash
 # 全局安装
 npm install -g openspecui
@@ -213,6 +282,44 @@ openspecui
 
 # 或指定目录
 openspecui ./my-project
+```
+
+#### 通过 Nix（Linux、macOS）
+
+如果您使用 Nix 包管理器：
+
+```bash
+# 无需安装直接运行
+nix run github:jixoai-labs/openspecui
+
+# 带参数运行
+nix run github:jixoai-labs/openspecui -- --help
+nix run github:jixoai-labs/openspecui -- ./my-project
+
+# 安装到用户配置文件
+nix profile install github:jixoai-labs/openspecui
+openspecui  # 现在可以在 PATH 中使用
+```
+
+**添加到 NixOS 配置：**
+
+```nix
+{
+  inputs.openspecui.url = "github:jixoai-labs/openspecui";
+
+  environment.systemPackages = [
+    inputs.openspecui.packages.${system}.default
+  ];
+}
+```
+
+**开发环境：**
+
+```bash
+# 进入包含所有依赖的开发环境
+nix develop
+pnpm install
+pnpm dev
 ```
 
 界面将在 `http://localhost:3100` 打开。
@@ -290,6 +397,8 @@ python3 -m http.server 8080
 
 #### 部署到 GitHub Pages
 
+**使用 npm：**
+
 ```yaml
 # .github/workflows/deploy-specs.yml
 name: Deploy Specs
@@ -308,6 +417,31 @@ jobs:
           node-version: '20'
       - run: npm install -g openspecui
       - run: openspecui export ./dist
+      - uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+```
+
+**使用 Nix：**
+
+```yaml
+# .github/workflows/deploy-specs.yml
+name: Deploy Specs
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - run: nix run github:jixoai-labs/openspecui -- export ./dist
       - uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

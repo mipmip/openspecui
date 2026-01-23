@@ -12,3 +12,7 @@ provider.json
 
 test-output/
 .opencode
+
+# Nix build artifacts
+result
+result-*
