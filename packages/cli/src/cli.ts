@@ -145,11 +145,24 @@ async function main(): Promise<void> {
         const projectDir = resolve(originalCwd, argv.dir || '.')
         const outputDir = argv.output
 
+        // Normalize base path: ensure it starts and ends with /
+        let basePath = argv['base-path'] || '/'
+        if (basePath !== '/') {
+          // Ensure starts with /
+          if (!basePath.startsWith('/')) {
+            basePath = '/' + basePath
+          }
+          // Ensure ends with /
+          if (!basePath.endsWith('/')) {
+            basePath = basePath + '/'
+          }
+        }
+
         try {
           await exportStaticSite({
             projectDir,
             outputDir,
-            basePath: argv['base-path'],
+            basePath,
             clean: argv.clean,
           })
 
