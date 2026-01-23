@@ -15,6 +15,7 @@ A visual web interface for spec-driven development with OpenSpec.
 - **Change Proposals** - Track change proposals with tasks and deltas
 - **Task Tracking** - Click to toggle task completion status
 - **Realtime Updates** - WebSocket-based live updates when files change
+- **Static Site Export** - Export the current state as static website to be used in CI
 - **AI Integration** - Review, translate, and suggest improvements (API & ACP)
 
 ### Quick Start
@@ -35,13 +36,98 @@ The UI will open at `http://localhost:3100`.
 ### CLI Options
 
 ```
-Usage: openspecui [options] [project-dir]
+Usage: openspecui [command] [options] [project-dir]
+
+Commands:
+  openspecui [project-dir]        Start the development server (default)
+  openspecui start [project-dir]  Start the development server
+  openspecui export [output-dir]  Export as a static website
 
 Options:
-  -p, --port <port>   Port to run the server on (default: 3100)
-  -d, --dir <path>    Project directory containing openspec/ (default: cwd)
-  --no-open           Don't automatically open the browser
-  -h, --help          Show help message
+  -p, --port <port>       Port to run the server on (default: 3100)
+  -d, --dir <path>        Project directory containing openspec/
+  --no-open               Don't automatically open the browser
+  -h, --help              Show help message
+  -v, --version           Show version number
+
+Export Options:
+  --base-path <path>      Base path for deployment (default: /)
+  --clean                 Clean output directory before export
+```
+
+### Static Export
+
+Export your OpenSpec project as a static website for deployment to GitHub Pages, Netlify, or any static hosting service.
+
+```bash
+# Export to default directory (./openspec-export/)
+openspecui export
+
+# Export to custom directory
+openspecui export ./dist
+
+# Export for subdirectory deployment
+openspecui export --base-path=/docs/
+
+# Clean output directory before export
+openspecui export --clean
+```
+
+The exported site includes:
+
+- Complete data snapshot (data.json)
+- All HTML, CSS, JS assets
+- Fallback routing for SPA navigation
+- Routes manifest for all pages
+
+**Note:** Static exports have limited functionality compared to the live server:
+
+- No real-time file watching
+- No task checkbox toggling
+- No AI integration features
+- Read-only view of the snapshot at export time
+
+#### Test the Static Export Locally
+
+```bash
+# Export the site
+openspecui export ./test-output --clean
+
+# Serve it locally with any static server
+cd test-output
+python3 -m http.server 8080
+# Or: npx http-server -p 8080
+
+# Open in browser
+# http://localhost:8080
+```
+
+Look for the "📸 Static Snapshot" banner at the top to confirm static mode is active.
+
+#### Deploy to GitHub Pages
+
+```yaml
+# .github/workflows/deploy-specs.yml
+name: Deploy Specs
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install -g openspecui
+      - run: openspecui export ./dist
+      - uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
 ```
 
 ### Project Structure
@@ -82,13 +168,13 @@ pnpm dev
 
 ### Packages
 
-| Package | Description |
-|---------|-------------|
-| `openspecui` | CLI tool and bundled web UI |
-| `@openspecui/core` | File adapter, parser, validator, and watcher |
-| `@openspecui/server` | tRPC HTTP/WebSocket server |
-| `@openspecui/ai-provider` | AI provider abstraction (API & ACP) |
-| `@openspecui/web` | React web application |
+| Package                   | Description                                  |
+| ------------------------- | -------------------------------------------- |
+| `openspecui`              | CLI tool and bundled web UI                  |
+| `@openspecui/core`        | File adapter, parser, validator, and watcher |
+| `@openspecui/server`      | tRPC HTTP/WebSocket server                   |
+| `@openspecui/ai-provider` | AI provider abstraction (API & ACP)          |
+| `@openspecui/web`         | React web application                        |
 
 ### Tech Stack
 
@@ -134,13 +220,98 @@ openspecui ./my-project
 ### 命令行选项
 
 ```
-用法: openspecui [选项] [项目目录]
+用法: openspecui [命令] [选项] [项目目录]
+
+命令:
+  openspecui [项目目录]        启动开发服务器（默认）
+  openspecui start [项目目录]  启动开发服务器
+  openspecui export [输出目录] 导出为静态网站
 
 选项:
-  -p, --port <端口>   服务器端口（默认: 3100）
-  -d, --dir <路径>    包含 openspec/ 的项目目录（默认: 当前目录）
-  --no-open           不自动打开浏览器
-  -h, --help          显示帮助信息
+  -p, --port <端口>       服务器端口（默认: 3100）
+  -d, --dir <路径>        包含 openspec/ 的项目目录
+  --no-open               不自动打开浏览器
+  -h, --help              显示帮助信息
+  -v, --version           显示版本号
+
+导出选项:
+  --base-path <路径>      部署的基础路径（默认: /）
+  --clean                 导出前清理输出目录
+```
+
+### 静态导出
+
+将您的 OpenSpec 项目导出为静态网站，可部署到 GitHub Pages、Netlify 或任何静态托管服务。
+
+```bash
+# 导出到默认目录 (./openspec-export/)
+openspecui export
+
+# 导出到自定义目录
+openspecui export ./dist
+
+# 为子目录部署导出
+openspecui export --base-path=/docs/
+
+# 导出前清理输出目录
+openspecui export --clean
+```
+
+导出的网站包含：
+
+- 完整的数据快照 (data.json)
+- 所有 HTML、CSS、JS 资源
+- SPA 导航的回退路由
+- 所有页面的路由清单
+
+**注意：** 静态导出相比实时服务器功能有限：
+
+- 无实时文件监听
+- 无任务复选框切换
+- 无 AI 集成功能
+- 仅可查看导出时的只读快照
+
+#### 本地测试静态导出
+
+```bash
+# 导出网站
+openspecui export ./test-output --clean
+
+# 使用任何静态服务器本地提供服务
+cd test-output
+python3 -m http.server 8080
+# 或: npx http-server -p 8080
+
+# 在浏览器中打开
+# http://localhost:8080
+```
+
+查看顶部的 "📸 Static Snapshot" 横幅以确认静态模式已激活。
+
+#### 部署到 GitHub Pages
+
+```yaml
+# .github/workflows/deploy-specs.yml
+name: Deploy Specs
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install -g openspecui
+      - run: openspecui export ./dist
+      - uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
 ```
 
 ### 项目结构
@@ -181,13 +352,13 @@ pnpm dev
 
 ### 包说明
 
-| 包名 | 描述 |
-|------|------|
-| `openspecui` | CLI 工具和打包的 Web UI |
-| `@openspecui/core` | 文件适配器、解析器、验证器和监视器 |
-| `@openspecui/server` | tRPC HTTP/WebSocket 服务器 |
-| `@openspecui/ai-provider` | AI 提供者抽象层（API 和 ACP） |
-| `@openspecui/web` | React Web 应用 |
+| 包名                      | 描述                               |
+| ------------------------- | ---------------------------------- |
+| `openspecui`              | CLI 工具和打包的 Web UI            |
+| `@openspecui/core`        | 文件适配器、解析器、验证器和监视器 |
+| `@openspecui/server`      | tRPC HTTP/WebSocket 服务器         |
+| `@openspecui/ai-provider` | AI 提供者抽象层（API 和 ACP）      |
+| `@openspecui/web`         | React Web 应用                     |
 
 ### 技术栈
 

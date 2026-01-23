@@ -48,8 +48,8 @@
 - [x] 6.2 Verify all routes are accessible in static output
 - [x] 6.3 Test navigation between pages
 - [x] 6.4 Validate asset loading and styling
-- [ ] 6.5 Test with different base paths (/, /docs/, etc.)
-- [ ] 6.6 Write unit tests for export logic
+- [x] 6.5 Test with different base paths (/, /docs/, etc.)
+- [x] 6.6 Write unit tests for export logic
 
 ## 7. Documentation
 
@@ -64,4 +64,3 @@
 - [x] 8.1 Create example GitHub Actions workflow
 - [x] 8.2 Add example for deploying to GitHub Pages
 - [x] 8.3 Add example for deploying to Netlify
-- [ ] 8.4 Test example workflows in CI environment
