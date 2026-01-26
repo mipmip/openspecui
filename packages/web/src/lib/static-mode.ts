@@ -12,7 +12,7 @@ let staticModeDetected: boolean | null = null
 // Try to detect static mode early by checking if data.json is present
 // This runs synchronously at module load time
 try {
-  const basePath = (import.meta.env.BASE_URL || '/').replace(/\/$/, '')
+  const basePath = (window.__OPENSPEC_BASE_PATH__ || '/').replace(/\/$/, '')
   const dataUrl = `${basePath}/data.json`.replace('//', '/')
 
   // Use a synchronous check: if we're in static mode, data.json should be available
@@ -72,7 +72,7 @@ export function setStaticMode(value: boolean): void {
  * Get the base path for the application
  */
 export function getBasePath(): string {
-  return import.meta.env.BASE_URL || '/'
+  return window.__OPENSPEC_BASE_PATH__ || '/'
 }
 
 /**

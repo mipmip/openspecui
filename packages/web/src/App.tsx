@@ -14,6 +14,13 @@ import { Settings } from './routes/settings'
 import { SpecList } from './routes/spec-list'
 import { SpecView } from './routes/spec-view'
 
+// Add type declaration for runtime base path
+declare global {
+  interface Window {
+    __OPENSPEC_BASE_PATH__?: string
+  }
+}
+
 // Root layout
 const rootRoute = createRootRoute({
   component: RootLayout,
@@ -91,8 +98,8 @@ const routeTree = rootRoute.addChildren([
   settingsRoute,
 ])
 
-// Get base path from Vite config (set via VITE_BASE_PATH env var during build)
-const basepath = import.meta.env.BASE_URL
+// Get base path from runtime configuration (injected in index.html)
+const basepath = window.__OPENSPEC_BASE_PATH__ || '/'
 
 const router = createRouter({
   routeTree,

@@ -17,14 +17,9 @@ export default defineConfig(() => {
   const backendTarget = resolveBackendTarget()
   console.log(`[dev-proxy] backend target => ${backendTarget}`)
 
-  // Support base path configuration via env var (for static export)
-  const basePath = process.env.VITE_BASE_PATH || '/'
-  if (basePath !== '/') {
-    console.log(`[vite-config] base path => ${basePath}`)
-  }
-
+  // Always use base: '/' - base path is now configured at runtime via window.__OPENSPEC_BASE_PATH__
   return {
-    base: basePath,
+    base: '/',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {

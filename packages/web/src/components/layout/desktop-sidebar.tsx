@@ -6,8 +6,8 @@ import { navItems, settingsItem } from './nav-items'
 export function DesktopSidebar() {
   const isDark = useDarkMode()
 
-  // Get base path from Vite config
-  const basePath = import.meta.env.BASE_URL
+  // Get base path from runtime configuration
+  const basePath = window.__OPENSPEC_BASE_PATH__ || '/'
 
   return (
     <nav className="desktop-sidebar border-border bg-muted/30 flex w-64 shrink-0 flex-col border-r p-4">
