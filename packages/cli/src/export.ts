@@ -1,5 +1,4 @@
 import { OpenSpecAdapter } from '@openspecui/core'
-import { execSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { cp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
@@ -244,20 +243,18 @@ export async function generateSnapshot(projectDir: string): Promise<ExportSnapsh
 /**
  * Get the path to the web build directory
  */
-function getWebBuildDir(useCustomBuild: boolean = false): string {
-  // If using a custom build (e.g., with custom base path), use the web package dist
-  if (useCustomBuild) {
-    const webDistPath = join(__dirname, '..', '..', 'web', 'dist')
-    if (existsSync(webDistPath)) {
-      return webDistPath
-    }
-  }
-
+function getWebBuildDir(): string {
   // In production, web assets are in ./web
   // In development, we need to build first
   const prodPath = join(__dirname, '..', 'web')
   if (existsSync(prodPath)) {
     return prodPath
+  }
+
+  // Development fallback - check if dist exists in web package
+  const webDistPath = join(__dirname, '..', '..', 'web', 'dist')
+  if (existsSync(webDistPath)) {
+    return webDistPath
   }
 
   throw new Error(
@@ -283,7 +280,6 @@ export async function exportStaticSite(options: ExportOptions): Promise<void> {
   console.log(`🔗 Base path: ${basePath}\n`)
 
   const startTime = Date.now()
-  let useCustomBuild = false
 
   try {
     // Step 1: Clean output directory if requested
@@ -306,47 +302,14 @@ export async function exportStaticSite(options: ExportOptions): Promise<void> {
       console.warn(`⚠️  Warning: Snapshot exceeds 10MB. Consider splitting large projects.`)
     }
 
-    // Step 4: Build or rebuild web app if custom base path is specified
-    if (basePath !== '/') {
-      console.log(`🏗️  Building web app with base path ${basePath}...`)
-      const webPkgDir = join(__dirname, '..', '..', 'web')
-      const webDistDir = join(webPkgDir, 'dist')
-
-      // Clean the dist directory first to avoid stale assets
-      if (existsSync(webDistDir)) {
-        console.log('  🧹 Cleaning previous build...')
-        await rm(webDistDir, { recursive: true, force: true })
-      }
-
-      try {
-        execSync('npm run build', {
-          cwd: webPkgDir,
-          env: {
-            ...process.env,
-            VITE_BASE_PATH: basePath,
-          },
-          stdio: 'inherit',
-        })
-        console.log('  ✓ Web app built successfully')
-        useCustomBuild = true
-      } catch (error) {
-        console.error('\n  ❌ Failed to build web app with custom base path')
-        console.error(
-          '  💡 This usually means there are TypeScript errors or missing dependencies.'
-        )
-        console.error(`  📁 Build directory: ${webPkgDir}`)
-        throw new Error('Web app build failed. See output above for details.')
-      }
-    }
-
-    // Step 5: Write data snapshot
+    // Step 4: Write data snapshot
     console.log('💾 Writing data snapshot...')
     const snapshotPath = join(resolvedOutputDir, 'data.json')
     await writeFile(snapshotPath, JSON.stringify(snapshot, null, 2), 'utf-8')
 
-    // Step 6: Copy web build assets
+    // Step 5: Copy web build assets
     console.log('📋 Copying web assets...')
-    const webBuildDir = getWebBuildDir(useCustomBuild)
+    const webBuildDir = getWebBuildDir()
     const files = await import('node:fs/promises').then((fs) => fs.readdir(webBuildDir))
 
     for (const file of files) {
@@ -355,7 +318,45 @@ export async function exportStaticSite(options: ExportOptions): Promise<void> {
       await cp(srcPath, destPath, { recursive: true })
     }
 
-    // Step 6: Generate fallback routing files
+    // Step 6: Patch index.html with base path
+    if (basePath !== '/') {
+      console.log(`🔧 Configuring base path: ${basePath}`)
+      const indexPath = join(resolvedOutputDir, 'index.html')
+      if (existsSync(indexPath)) {
+        const { readFile } = await import('node:fs/promises')
+        let indexHtml = await readFile(indexPath, 'utf-8')
+
+        // Replace the base path in the injected script
+        const beforeBasePath = indexHtml.includes("window.__OPENSPEC_BASE_PATH__ = '/'")
+        indexHtml = indexHtml.replace(
+          "window.__OPENSPEC_BASE_PATH__ = '/'",
+          `window.__OPENSPEC_BASE_PATH__ = '${basePath}'`
+        )
+        const afterBasePath = indexHtml.includes(`window.__OPENSPEC_BASE_PATH__ = '${basePath}'`)
+
+        if (!beforeBasePath) {
+          console.warn(`  ⚠️  Warning: Could not find base path placeholder in index.html`)
+        } else if (!afterBasePath) {
+          console.warn(`  ⚠️  Warning: Base path replacement may have failed`)
+        } else {
+          console.log(`  ✓ Replaced base path variable with: ${basePath}`)
+        }
+
+        // Patch all absolute asset paths to include base path
+        // Match src="/..." and href="/..." attributes (but not protocol URLs like https://)
+        let assetReplacements = 0
+        indexHtml = indexHtml.replace(/\s(src|href)="\/(?!\/)/g, (_match, attr) => {
+          assetReplacements++
+          return ` ${attr}="${basePath}`
+        })
+        console.log(`  ✓ Patched ${assetReplacements} asset path(s)`)
+
+        await writeFile(indexPath, indexHtml, 'utf-8')
+        console.log(`  ✓ Base path configured in index.html`)
+      }
+    }
+
+    // Step 7: Generate fallback routing files
     console.log('🔀 Generating routing fallback...')
 
     // Netlify _redirects

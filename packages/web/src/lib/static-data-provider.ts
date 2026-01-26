@@ -33,7 +33,7 @@ export async function loadSnapshot(): Promise<ExportSnapshot | null> {
 
   snapshotPromise = (async () => {
     try {
-      const basePath = import.meta.env.BASE_URL || '/'
+      const basePath = window.__OPENSPEC_BASE_PATH__ || '/'
       const dataUrl = `${basePath}data.json`.replace('//', '/')
       const response = await fetch(dataUrl)
 

@@ -13,8 +13,8 @@ export function MobileHeader() {
   const serverStatus = useServerStatus()
   const pageTitle = serverStatus.dirName ?? 'OpenSpec'
 
-  // Get base path from Vite config
-  const basePath = import.meta.env.BASE_URL
+  // Get base path from runtime configuration
+  const basePath = window.__OPENSPEC_BASE_PATH__ || '/'
 
   return (
     <>
