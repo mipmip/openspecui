@@ -318,6 +318,25 @@ export async function exportStaticSite(options: ExportOptions): Promise<void> {
       await cp(srcPath, destPath, { recursive: true })
     }
 
+    // Make copied files writable (needed when copying from Nix store or other read-only sources)
+    const { chmod } = await import('node:fs/promises')
+    const { readdirSync } = await import('node:fs')
+
+    async function makeWritable(dir: string) {
+      const entries = readdirSync(dir, { withFileTypes: true })
+      for (const entry of entries) {
+        const fullPath = join(dir, entry.name)
+        if (entry.isDirectory()) {
+          await makeWritable(fullPath)
+          await chmod(fullPath, 0o755)
+        } else {
+          await chmod(fullPath, 0o644)
+        }
+      }
+    }
+
+    await makeWritable(resolvedOutputDir)
+
     // Step 6: Patch index.html with base path
     if (basePath !== '/') {
       console.log(`🔧 Configuring base path: ${basePath}`)
