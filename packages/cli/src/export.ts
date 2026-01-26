@@ -310,13 +310,15 @@ export async function exportStaticSite(options: ExportOptions): Promise<void> {
     if (basePath !== '/') {
       console.log(`🏗️  Building web app with base path ${basePath}...`)
       const webPkgDir = join(__dirname, '..', '..', 'web')
-      const webDistDir = join(webPkgDir, 'dist')
+      //const webDistDir = join(webPkgDir, 'dist')
 
+      /*
       // Clean the dist directory first to avoid stale assets
       if (existsSync(webDistDir)) {
         console.log('  🧹 Cleaning previous build...')
         await rm(webDistDir, { recursive: true, force: true })
       }
+      */
 
       try {
         execSync('npm run build', {
