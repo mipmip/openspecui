@@ -31,6 +31,7 @@
   "devDependencies": {
     "@hono/node-server": "^1.14.1",
     "@openspecui/server": "workspace:*",
+    "@openspecui/web": "workspace:*",
     "@types/node": "^22.10.2",
     "@types/ws": "^8.5.13",
     "@types/yargs": "^17.0.35",

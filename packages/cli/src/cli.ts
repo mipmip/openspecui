@@ -5,6 +5,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import yargs from 'yargs'
 import { hideBin } from 'yargs/helpers'
+import type { ExportFormat } from './export.js'
 import { exportStaticSite } from './export.js'
 import { startServer } from './index.js'
 
@@ -111,14 +112,21 @@ async function main(): Promise<void> {
     )
     .command(
       'export',
-      'Export OpenSpec UI as a static website (alias for @openspecui/web ssg)',
+      'Export OpenSpec project as static website or JSON data',
       (yargs) => {
         return yargs
           .option('output', {
             alias: 'o',
-            describe: 'Output directory for static export',
+            describe: 'Output directory for export',
             type: 'string',
             demandOption: true,
+          })
+          .option('format', {
+            alias: 'f',
+            describe: 'Export format',
+            type: 'string',
+            choices: ['html', 'json'] as const,
+            default: 'html',
           })
           .option('dir', {
             alias: 'd',
@@ -156,6 +164,7 @@ async function main(): Promise<void> {
           await exportStaticSite({
             projectDir,
             outputDir,
+            format: argv.format as ExportFormat,
             basePath: argv['base-path'],
             clean: argv.clean,
             open: argv.open,
@@ -176,8 +185,8 @@ async function main(): Promise<void> {
     .example('$0', 'Start server in current directory')
     .example('$0 ./my-project', 'Start server with specific project')
     .example('$0 -p 8080', 'Start server on custom port')
-    .example('$0 export -o ./dist', 'Export to ./dist directory')
-    .example('$0 export --output ./public', 'Export to ./public directory')
+    .example('$0 export -o ./dist', 'Export HTML to ./dist directory')
+    .example('$0 export -o ./dist -f json', 'Export JSON data only')
     .example('$0 export -o ./dist --base-path=/docs/', 'Export for subdirectory deployment')
     .example('$0 export -o ./dist --clean', 'Clean output directory before export')
     .version(getVersion())

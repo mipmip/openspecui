@@ -1,25 +1,26 @@
 import { OpenSpecAdapter, type ExportSnapshot } from '@openspecui/core'
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import pkg from '../package.json' with { type: 'json' }
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
-// This version is replaced at build time by tsdown
-declare const __WEB_PACKAGE_VERSION__: string
-const WEB_PACKAGE_VERSION = typeof __WEB_PACKAGE_VERSION__ !== 'undefined' ? __WEB_PACKAGE_VERSION__ : '0.1.0'
+export type ExportFormat = 'html' | 'json'
 
 export interface ExportOptions {
   /** Project directory containing openspec/ */
   projectDir: string
   /** Output directory for static export */
   outputDir: string
-  /** Base path for deployment */
+  /** Export format: 'html' (default) or 'json' */
+  format?: ExportFormat
+  /** Base path for deployment (html only) */
   basePath?: string
   /** Clean output directory before export */
   clean?: boolean
-  /** Start preview server and open in browser */
+  /** Start preview server and open in browser (html only) */
   open?: boolean
   /** Port for preview server */
   previewPort?: number
@@ -144,7 +145,7 @@ export async function generateSnapshot(projectDir: string): Promise<ExportSnapsh
   const snapshot: ExportSnapshot = {
     meta: {
       timestamp: new Date().toISOString(),
-      version: WEB_PACKAGE_VERSION,
+      version: pkg.version,
       projectDir,
     },
     dashboard: {
@@ -163,135 +164,142 @@ export async function generateSnapshot(projectDir: string): Promise<ExportSnapsh
 }
 
 /**
- * Detect the package manager being used
- */
-function detectPackageManager(): 'pnpm' | 'yarn' | 'bun' | 'npm' {
-  const userAgent = process.env.npm_config_user_agent || ''
-  if (userAgent.includes('pnpm')) return 'pnpm'
-  if (userAgent.includes('yarn')) return 'yarn'
-  if (userAgent.includes('bun')) return 'bun'
-  return 'npm'
-}
-
-/**
- * Get the command to execute a package binary
- */
-function getExecCommand(pm: 'pnpm' | 'yarn' | 'bun' | 'npm'): { cmd: string; args: string[] } {
-  const packageSpec = WEB_PACKAGE_VERSION.startsWith('__')
-    ? '@openspecui/web' // Development: use latest
-    : `@openspecui/web@${WEB_PACKAGE_VERSION}` // Production: use pinned version
-
-  switch (pm) {
-    case 'pnpm':
-      return { cmd: 'pnpm', args: ['dlx', packageSpec] }
-    case 'yarn':
-      return { cmd: 'yarn', args: ['dlx', packageSpec] }
-    case 'bun':
-      return { cmd: 'bunx', args: [packageSpec] }
-    case 'npm':
-    default:
-      return { cmd: 'npx', args: [packageSpec] }
-  }
-}
-
-/**
  * Check if running in local monorepo development mode
- * Returns the path to local SSG CLI if available, null otherwise
+ * Returns the path to web package root if available, null otherwise
  */
-function findLocalSSGCli(): string | null {
-  // Check for local development (tsx) - packages/cli/src -> packages/web/src/ssg/cli.ts
-  const localSsgTs = join(__dirname, '..', '..', 'web', 'src', 'ssg', 'cli.ts')
-  if (existsSync(localSsgTs)) {
-    return localSsgTs
+function findLocalWebPackage(): string | null {
+  // Check for local development - packages/cli/src -> packages/web
+  const localWebPkg = join(__dirname, '..', '..', 'web', 'package.json')
+  if (existsSync(localWebPkg)) {
+    return join(__dirname, '..', '..', 'web')
   }
-
   return null
 }
 
 /**
- * Export the OpenSpec UI as a static website with SSG (pre-rendered HTML)
- *
- * This function:
- * 1. Generates a data snapshot from the openspec/ directory
- * 2. Writes data.json to the output directory
- * 3. Delegates to @openspecui/web's SSG CLI for rendering
- *
- * In development (monorepo), it uses the local web package.
- * In production, it uses npx/pnpm dlx to fetch the published package.
+ * Run a command and wait for it to complete
  */
-export async function exportStaticSite(options: ExportOptions): Promise<void> {
-  const { projectDir, outputDir, basePath, clean, open, previewPort, previewHost } = options
+function runCommand(cmd: string, args: string[], cwd: string): Promise<void> {
+  return new Promise((resolvePromise, reject) => {
+    const child = spawn(cmd, args, { stdio: 'inherit', cwd })
+    child.on('close', (code) => {
+      if (code === 0) resolvePromise()
+      else reject(new Error(`Command failed with exit code ${code}`))
+    })
+    child.on('error', (err) => reject(err))
+  })
+}
 
-  // 1. Clean output directory if requested
+/**
+ * Export as JSON only (data.json)
+ */
+async function exportJson(options: ExportOptions): Promise<void> {
+  const { projectDir, outputDir, clean } = options
+
   if (clean && existsSync(outputDir)) {
     rmSync(outputDir, { recursive: true })
   }
-
-  // 2. Create output directory
   mkdirSync(outputDir, { recursive: true })
 
-  // 3. Generate data snapshot and write to data.json
+  console.log('Generating data snapshot...')
+  const snapshot = await generateSnapshot(projectDir)
+  const dataJsonPath = join(outputDir, 'data.json')
+  writeFileSync(dataJsonPath, JSON.stringify(snapshot, null, 2))
+  console.log(`\nExported to ${dataJsonPath}`)
+  console.log(`  Specs: ${snapshot.specs.length}`)
+  console.log(`  Changes: ${snapshot.changes.length}`)
+  console.log(`  Archives: ${snapshot.archives.length}`)
+}
+
+/**
+ * Export as static HTML site
+ */
+async function exportHtml(options: ExportOptions): Promise<void> {
+  const { projectDir, outputDir, basePath = '/', clean, open, previewPort, previewHost } = options
+
+  if (clean && existsSync(outputDir)) {
+    rmSync(outputDir, { recursive: true })
+  }
+  mkdirSync(outputDir, { recursive: true })
+
+  // 1. Generate data.json
   console.log('Generating data snapshot...')
   const snapshot = await generateSnapshot(projectDir)
   const dataJsonPath = join(outputDir, 'data.json')
   writeFileSync(dataJsonPath, JSON.stringify(snapshot, null, 2))
   console.log(`Data snapshot written to ${dataJsonPath}`)
 
-  // 4. Build SSG arguments - pass data.json path instead of project dir
-  const ssgOnlyArgs = [
-    '--data', dataJsonPath,
-    '--output', outputDir,
-  ]
+  // 2. Check for local development mode
+  const localWebPkg = findLocalWebPackage()
 
-  if (basePath !== undefined) {
-    ssgOnlyArgs.push('--base-path', basePath)
-  }
+  if (localWebPkg) {
+    // Local development: run SSG directly
+    console.log('\n[Local dev mode] Running SSG from local web package...')
 
-  if (open) {
-    ssgOnlyArgs.push('--open')
-    if (previewPort !== undefined) {
-      ssgOnlyArgs.push('--preview-port', String(previewPort))
-    }
-    if (previewHost !== undefined) {
-      ssgOnlyArgs.push('--host', previewHost)
-    }
-  }
+    // Build client to web package's dist/client
+    console.log('\nBuilding client assets...')
+    await runCommand('pnpm', ['build:client'], localWebPkg)
 
-  // Check for local development mode first
-  const localCli = findLocalSSGCli()
+    // Build server
+    console.log('Building SSR bundle...')
+    await runCommand('pnpm', ['build:server'], localWebPkg)
 
-  let cmd: string
-  let args: string[]
+    // Run prerender - output to user's outputDir, but read template from dist/client
+    console.log('Pre-rendering pages...')
+    const clientDistDir = join(localWebPkg, 'dist', 'client')
+    const prerenderArgs = [
+      'tsx', 'src/ssg/prerender.ts',
+      '--data', dataJsonPath,
+      '--output', clientDistDir,  // First render to dist/client
+      '--base-path', basePath,
+    ]
+    await runCommand('npx', prerenderArgs, localWebPkg)
 
-  if (localCli) {
-    // Local development: use tsx to run local CLI
-    cmd = 'npx'
-    args = ['tsx', localCli, ...ssgOnlyArgs]
+    // Copy rendered files to user's output directory
+    console.log('\nCopying to output directory...')
+    const { cpSync } = await import('node:fs')
+    cpSync(clientDistDir, outputDir, { recursive: true })
+    // Also copy data.json (it was overwritten)
+    writeFileSync(join(outputDir, 'data.json'), JSON.stringify(snapshot, null, 2))
+
+    console.log(`\nExport complete: ${outputDir}`)
   } else {
-    // Production: use package manager to fetch and run from npm
-    const pm = detectPackageManager()
-    const execCmd = getExecCommand(pm)
-    cmd = execCmd.cmd
-    args = [...execCmd.args, ...ssgOnlyArgs]
+    // Production: SSG requires local build, output instructions
+    console.log('\nNote: HTML export requires @openspecui/web to be installed locally.')
+    console.log('For production SSG, run these commands:')
+    console.log('  npm install @openspecui/web')
+    console.log('  cd node_modules/@openspecui/web')
+    console.log('  pnpm build:ssg')
+    console.log(`  npx tsx src/ssg/prerender.ts --data ${dataJsonPath} --output ${outputDir}`)
+    console.log('\nData exported to data.json. Run the above commands to generate HTML.')
+    return
   }
 
-  // 5. Run the SSG CLI
-  return new Promise((resolvePromise, reject) => {
-    const child = spawn(cmd, args, {
-      stdio: 'inherit',
-      cwd: projectDir,
-    })
+  // 3. Start preview server if requested
+  if (open) {
+    console.log('\nStarting preview server...')
+    const previewArgs = ['vite', 'preview', '--outDir', resolve(outputDir)]
+    if (previewPort) previewArgs.push('--port', String(previewPort))
+    if (previewHost) previewArgs.push('--host', previewHost)
+    previewArgs.push('--open')
 
-    child.on('close', (code) => {
-      if (code === 0) {
-        resolvePromise()
-      } else {
-        reject(new Error(`SSG export failed with exit code ${code}`))
-      }
-    })
-
-    child.on('error', (err) => {
-      reject(new Error(`Failed to start SSG CLI: ${err.message}`))
-    })
-  })
+    await runCommand('npx', previewArgs, outputDir)
+  }
 }
+
+/**
+ * Export the OpenSpec project
+ *
+ * @param options Export options
+ * @param options.format 'html' (default) - full static site, 'json' - data only
+ */
+export async function exportStaticSite(options: ExportOptions): Promise<void> {
+  const format = options.format || 'html'
+
+  if (format === 'json') {
+    await exportJson(options)
+  } else {
+    await exportHtml(options)
+  }
+}
+

@@ -67,6 +67,9 @@ importers:
       '@openspecui/server':
         specifier: workspace:*
         version: link:../server
+      '@openspecui/web':
+        specifier: workspace:*
+        version: link:../web
       '@types/node':
         specifier: ^22.10.2
         version: 22.19.1
