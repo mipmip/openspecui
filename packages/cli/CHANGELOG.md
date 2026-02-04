@@ -1,5 +1,14 @@
 # openspecui
 
+## 0.9.1
+
+### Patch Changes
+
+- Add --format option to export command
+  - Support `--format=html` (default) for full static site export
+  - Support `--format=json` for data-only export
+  - Fix local dev mode SSG workflow
+
 ## 0.9.0
 
 ### Minor Changes
