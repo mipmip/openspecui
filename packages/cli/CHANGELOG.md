@@ -1,5 +1,13 @@
 # openspecui
 
+## 0.9.2
+
+### Patch Changes
+
+- Fix export command for production use
+  - Production HTML export now shows instructions instead of failing
+  - JSON export works in both development and production
+
 ## 0.9.1
 
 ### Patch Changes
