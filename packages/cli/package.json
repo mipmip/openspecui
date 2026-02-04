@@ -1,6 +1,6 @@
 {
   "name": "openspecui",
-  "version": "0.9.3",
+  "version": "0.9.4",
   "description": "OpenSpec UI - Visual interface for spec-driven development",
   "type": "module",
   "main": "dist/index.mjs",

@@ -1,5 +1,11 @@
 # openspecui
 
+## 0.9.4
+
+### Patch Changes
+
+- Fix preview server command to use correct package manager exec syntax
+
 ## 0.9.3
 
 ### Patch Changes

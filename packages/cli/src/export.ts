@@ -218,6 +218,24 @@ function detectPackageManager(): PackageManager {
 }
 
 /**
+ * Get the command to run a local binary (like vite)
+ */
+function getRunCommand(pm: PackageManager, bin: string): { cmd: string; args: string[] } {
+  switch (pm) {
+    case 'bun':
+      return { cmd: 'bunx', args: [bin] }
+    case 'pnpm':
+      return { cmd: 'pnpm', args: ['exec', bin] }
+    case 'yarn':
+      return { cmd: 'yarn', args: [bin] }
+    case 'deno':
+      return { cmd: 'deno', args: ['run', '-A', `npm:${bin}`] }
+    default:
+      return { cmd: 'npx', args: [bin] }
+  }
+}
+
+/**
  * Get the exec command for running a package binary
  * Uses appropriate flags to ensure the correct version of @openspecui/web is installed
  */
@@ -321,13 +339,14 @@ async function exportHtml(options: ExportOptions): Promise<void> {
   // 3. Start preview server if requested
   if (open) {
     console.log('\nStarting preview server...')
-    const previewArgs = ['vite', 'preview', '--outDir', resolve(outputDir)]
-    if (previewPort) previewArgs.push('--port', String(previewPort))
-    if (previewHost) previewArgs.push('--host', previewHost)
-    previewArgs.push('--open')
-    const pm = detectPackageManager()
+    const viteArgs = ['preview', '--outDir', resolve(outputDir)]
+    if (previewPort) viteArgs.push('--port', String(previewPort))
+    if (previewHost) viteArgs.push('--host', previewHost)
+    viteArgs.push('--open')
 
-    await runCommand(pm, previewArgs, outputDir)
+    const pm = detectPackageManager()
+    const { cmd, args } = getRunCommand(pm, 'vite')
+    await runCommand(cmd, [...args, ...viteArgs], outputDir)
   }
 }
 
