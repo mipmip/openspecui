@@ -1,5 +1,6 @@
 node_modules/
 dist/
+dist-ssg/
 build/
 bundle/
 coverage/

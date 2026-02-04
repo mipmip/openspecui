@@ -47,12 +47,9 @@ export default defineConfig(({ isSsrBuild }) => {
       setupFiles: './src/test/setup.ts',
     },
     ssr: {
-      // SSR build: don't externalize these packages - bundle them
-      noExternal: isSsrBuild ? [
-        '@tanstack/react-router',
-        '@tanstack/react-query',
-        'lucide-react',
-      ] : [],
+      // SSR build: bundle all dependencies into entry-server.js
+      // This eliminates runtime dependencies for the SSG CLI
+      noExternal: isSsrBuild ? true : [],
     },
   }
 })

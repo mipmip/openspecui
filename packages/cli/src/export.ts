@@ -1,7 +1,7 @@
 import { OpenSpecAdapter, type ExportSnapshot } from '@openspecui/core'
+import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
-import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import pkg from '../package.json' with { type: 'json' }
 
@@ -181,13 +181,68 @@ function findLocalWebPackage(): string | null {
  */
 function runCommand(cmd: string, args: string[], cwd: string): Promise<void> {
   return new Promise((resolvePromise, reject) => {
-    const child = spawn(cmd, args, { stdio: 'inherit', cwd })
+    const child = spawn(cmd, args, { stdio: 'inherit', cwd, shell: true })
     child.on('close', (code) => {
       if (code === 0) resolvePromise()
       else reject(new Error(`Command failed with exit code ${code}`))
     })
     child.on('error', (err) => reject(err))
   })
+}
+
+type PackageManager = 'npm' | 'pnpm' | 'yarn' | 'bun' | 'deno'
+
+/**
+ * Detect the package manager used in the current project
+ */
+function detectPackageManager(): PackageManager {
+  // Deno sets DENO_VERSION environment variable
+  if (process.env.DENO_VERSION) return 'deno'
+
+  // npm_config_user_agent format: "pnpm/9.0.0 node/v20.10.0 darwin arm64"
+  const userAgent = process.env.npm_config_user_agent
+  if (userAgent) {
+    if (userAgent.startsWith('bun')) return 'bun'
+    if (userAgent.startsWith('pnpm')) return 'pnpm'
+    if (userAgent.startsWith('yarn')) return 'yarn'
+    if (userAgent.startsWith('npm')) return 'npm'
+    if (userAgent.startsWith('deno')) return 'deno'
+  }
+
+  // Fallback: check lockfiles
+  if (existsSync('deno.lock')) return 'deno'
+  if (existsSync('bun.lockb') || existsSync('bun.lock')) return 'bun'
+  if (existsSync('pnpm-lock.yaml')) return 'pnpm'
+  if (existsSync('yarn.lock')) return 'yarn'
+  return 'npm'
+}
+
+/**
+ * Get the exec command for running a package binary
+ * Uses appropriate flags to ensure the correct version of @openspecui/web is installed
+ */
+function getExecCommand(pm: PackageManager): { cmd: string; args: string[] } {
+  // Use cli package version (web package is published in sync)
+  const webPkgSpec = `@openspecui/web@${pkg.version}`
+
+  switch (pm) {
+    case 'bun':
+      // bunx -p @openspecui/web@version openspecui-ssg
+      return { cmd: 'bunx', args: ['-p', webPkgSpec, 'openspecui-ssg'] }
+    case 'pnpm':
+      // pnpm dlx @openspecui/web@version --package @openspecui/web@version openspecui-ssg
+      // Note: pnpm dlx runs the bin from the package directly
+      return { cmd: 'pnpm', args: ['dlx', webPkgSpec] }
+    case 'yarn':
+      // yarn dlx @openspecui/web@version
+      return { cmd: 'yarn', args: ['dlx', webPkgSpec] }
+    case 'deno':
+      // deno run -A npm:@openspecui/web@version/openspecui-ssg
+      return { cmd: 'deno', args: ['run', '-A', `npm:${webPkgSpec}/openspecui-ssg`] }
+    default:
+      // npx -p @openspecui/web@version openspecui-ssg
+      return { cmd: 'npx', args: ['-p', webPkgSpec, 'openspecui-ssg'] }
+  }
 }
 
 /**
@@ -229,51 +284,39 @@ async function exportHtml(options: ExportOptions): Promise<void> {
   writeFileSync(dataJsonPath, JSON.stringify(snapshot, null, 2))
   console.log(`Data snapshot written to ${dataJsonPath}`)
 
-  // 2. Check for local development mode
+  // 2. Run SSG
   const localWebPkg = findLocalWebPackage()
 
   if (localWebPkg) {
-    // Local development: run SSG directly
+    // Local development: run SSG CLI directly via tsx
     console.log('\n[Local dev mode] Running SSG from local web package...')
-
-    // Build client to web package's dist/client
-    console.log('\nBuilding client assets...')
-    await runCommand('pnpm', ['build:client'], localWebPkg)
-
-    // Build server
-    console.log('Building SSR bundle...')
-    await runCommand('pnpm', ['build:server'], localWebPkg)
-
-    // Run prerender - output to user's outputDir, but read template from dist/client
-    console.log('Pre-rendering pages...')
-    const clientDistDir = join(localWebPkg, 'dist', 'client')
-    const prerenderArgs = [
-      'tsx', 'src/ssg/prerender.ts',
-      '--data', dataJsonPath,
-      '--output', clientDistDir,  // First render to dist/client
-      '--base-path', basePath,
-    ]
-    await runCommand('npx', prerenderArgs, localWebPkg)
-
-    // Copy rendered files to user's output directory
-    console.log('\nCopying to output directory...')
-    const { cpSync } = await import('node:fs')
-    cpSync(clientDistDir, outputDir, { recursive: true })
-    // Also copy data.json (it was overwritten)
-    writeFileSync(join(outputDir, 'data.json'), JSON.stringify(snapshot, null, 2))
-
-    console.log(`\nExport complete: ${outputDir}`)
+    const ssgCli = join(localWebPkg, 'src', 'ssg', 'cli.ts')
+    await runCommand(
+      'pnpm',
+      ['tsx', ssgCli, '--data', dataJsonPath, '--output', outputDir, '--base-path', basePath],
+      localWebPkg
+    )
   } else {
-    // Production: SSG requires local build, output instructions
-    console.log('\nNote: HTML export requires @openspecui/web to be installed locally.')
-    console.log('For production SSG, run these commands:')
-    console.log('  npm install @openspecui/web')
-    console.log('  cd node_modules/@openspecui/web')
-    console.log('  pnpm build:ssg')
-    console.log(`  npx tsx src/ssg/prerender.ts --data ${dataJsonPath} --output ${outputDir}`)
-    console.log('\nData exported to data.json. Run the above commands to generate HTML.')
-    return
+    // Production: call the bundled SSG CLI from @openspecui/web
+    console.log('\n[Production mode] Running SSG via @openspecui/web...')
+
+    const pm = detectPackageManager()
+    const execCmd = getExecCommand(pm)
+
+    try {
+      await runCommand(
+        execCmd.cmd,
+        [...execCmd.args, '--data', dataJsonPath, '--output', outputDir, '--base-path', basePath],
+        process.cwd()
+      )
+    } catch (err) {
+      console.error('\nSSG failed. Make sure @openspecui/web is installed:')
+      console.error(`  ${pm} add @openspecui/web`)
+      throw err
+    }
   }
+
+  console.log(`\nExport complete: ${outputDir}`)
 
   // 3. Start preview server if requested
   if (open) {
@@ -282,8 +325,9 @@ async function exportHtml(options: ExportOptions): Promise<void> {
     if (previewPort) previewArgs.push('--port', String(previewPort))
     if (previewHost) previewArgs.push('--host', previewHost)
     previewArgs.push('--open')
+    const pm = detectPackageManager()
 
-    await runCommand('npx', previewArgs, outputDir)
+    await runCommand(pm, previewArgs, outputDir)
   }
 }
 
@@ -302,4 +346,3 @@ export async function exportStaticSite(options: ExportOptions): Promise<void> {
     await exportHtml(options)
   }
 }
-

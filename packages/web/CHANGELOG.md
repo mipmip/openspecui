@@ -1,5 +1,11 @@
 # @openspecui/web
 
+## 0.9.3
+
+### Patch Changes
+
+- optimize SSG export implementation
+
 ## 0.9.0
 
 ### Minor Changes

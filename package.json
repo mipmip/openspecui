@@ -20,7 +20,7 @@
     "format": "prettier --write .",
     "test": "vitest",
     "changeset": "changeset",
-    "version": "changeset version",
+    "changeversion": "changeset version",
     "release": "pnpm build && changeset publish",
     "example:setup": "tsx scripts/setup-example.ts",
     "example:clean": "tsx scripts/setup-example.ts --clean",
