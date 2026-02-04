@@ -7,9 +7,20 @@
  */
 
 /**
+ * Check if running in browser environment
+ */
+function isBrowser(): boolean {
+  return typeof window !== 'undefined' && typeof window.location !== 'undefined'
+}
+
+/**
  * Get API base URL from URL search params or use same-origin
  */
 export function getApiBaseUrl(): string {
+  if (!isBrowser()) {
+    return '' // SSR: return empty string
+  }
+
   const params = new URLSearchParams(window.location.search)
   const apiUrl = params.get('api')
 
@@ -26,6 +37,10 @@ export function getApiBaseUrl(): string {
  * Get WebSocket URL based on API base URL
  */
 export function getWsUrl(): string {
+  if (!isBrowser()) {
+    return '' // SSR: return empty string
+  }
+
   const baseUrl = getApiBaseUrl()
 
   if (baseUrl) {

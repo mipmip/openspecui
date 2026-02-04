@@ -24,7 +24,6 @@ import {
   CliExecutor,
   initWatcherPool,
 } from '@openspecui/core'
-import { ProviderManager, type ProviderRegistry } from '@openspecui/ai-provider'
 import { appRouter, type Context } from './router.js'
 import { findAvailablePort } from './port-utils.js'
 
@@ -36,8 +35,6 @@ export interface ServerConfig {
   projectDir: string
   /** Preferred HTTP server port (default: 3100). Will find next available if occupied. */
   port?: number
-  /** AI provider registry configuration */
-  providers?: ProviderRegistry
   /** Enable file watching for realtime updates (default: true) */
   enableWatcher?: boolean
   /** CORS origins (defaults to localhost dev servers) */
@@ -49,7 +46,6 @@ export interface ServerConfig {
  */
 export function createServer(config: ServerConfig) {
   const adapter = new OpenSpecAdapter(config.projectDir)
-  const providerManager = new ProviderManager(config.providers)
   const configManager = new ConfigManager(config.projectDir)
   const cliExecutor = new CliExecutor(configManager, config.projectDir)
 
@@ -86,7 +82,6 @@ export function createServer(config: ServerConfig) {
       router: appRouter,
       createContext: (): Context => ({
         adapter,
-        providerManager,
         configManager,
         cliExecutor,
         watcher,
@@ -99,7 +94,6 @@ export function createServer(config: ServerConfig) {
   // Create context factory for WebSocket connections
   const createContext = (): Context => ({
     adapter,
-    providerManager,
     configManager,
     cliExecutor,
     watcher,
@@ -109,7 +103,6 @@ export function createServer(config: ServerConfig) {
   return {
     app,
     adapter,
-    providerManager,
     configManager,
     cliExecutor,
     watcher,

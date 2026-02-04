@@ -1,4 +1,3 @@
-import { ACPAgents, type ProviderRegistry } from '@openspecui/ai-provider'
 import { startServer as serverStartServer } from '@openspecui/server'
 import type { Hono } from 'hono'
 import { existsSync, readFileSync, statSync } from 'node:fs'
@@ -14,8 +13,6 @@ export interface CLIOptions {
   port?: number
   /** Whether to automatically open the browser */
   open?: boolean
-  /** AI provider registry */
-  providers?: ProviderRegistry
   /** Enable realtime file watching (default: true) */
   enableWatcher?: boolean
 }
@@ -45,38 +42,6 @@ function getWebAssetsDir(): string {
   }
 
   throw new Error('Web assets not found. Make sure to build the web package first.')
-}
-
-/**
- * Create default AI providers registry
- */
-function createDefaultProviders(): ProviderRegistry {
-  return {
-    defaultAcp: 'claude-code',
-    defaultApi: 'openai',
-    providers: {
-      // ACP providers (Agent Client Protocol)
-      'claude-code': ACPAgents.claude,
-      codex: ACPAgents.codex,
-      iflow: ACPAgents.iflow,
-      gemini: ACPAgents.gemini,
-      // API providers (OpenAI-compatible)
-      openai: {
-        type: 'api',
-        name: 'OpenAI',
-        baseUrl: 'https://api.openai.com/v1',
-        apiKey: process.env.OPENAI_API_KEY || '',
-        model: 'gpt-4o',
-      },
-      anthropic: {
-        type: 'api',
-        name: 'Anthropic',
-        baseUrl: 'https://api.anthropic.com/v1',
-        apiKey: process.env.ANTHROPIC_API_KEY || '',
-        model: 'claude-sonnet-4-20250514',
-      },
-    },
-  }
 }
 
 /**
@@ -140,7 +105,6 @@ export async function startServer(options: CLIOptions = {}): Promise<RunningServ
   const {
     projectDir = process.cwd(),
     port = 3100,
-    providers = createDefaultProviders(),
     enableWatcher = true,
   } = options
 
@@ -148,7 +112,6 @@ export async function startServer(options: CLIOptions = {}): Promise<RunningServ
     {
       projectDir,
       port,
-      providers,
       enableWatcher,
     },
     setupStaticFiles
@@ -157,5 +120,4 @@ export async function startServer(options: CLIOptions = {}): Promise<RunningServ
   return server
 }
 
-export { ACPAgents, ProviderManager, type ProviderRegistry } from '@openspecui/ai-provider'
 export { createServer } from '@openspecui/server'

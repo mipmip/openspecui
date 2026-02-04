@@ -5,43 +5,29 @@
  * and provides data snapshot loading functionality.
  */
 
-import type { ExportSnapshot } from '../../../cli/src/export'
+import type { ExportSnapshot } from '../ssg/types'
 
 let staticModeDetected: boolean | null = null
 
-// Try to detect static mode early by checking if data.json is present
-// This runs synchronously at module load time
-try {
-  const basePath = (window.__OPENSPEC_BASE_PATH__ || '/').replace(/\/$/, '')
-  const dataUrl = `${basePath}/data.json`.replace('//', '/')
-
-  // Use a synchronous check: if we're in static mode, data.json should be available
-  // We do this by attempting a synchronous XMLHttpRequest
-  const xhr = new XMLHttpRequest()
-  xhr.open('HEAD', dataUrl, false) // false = synchronous
-  try {
-    xhr.send(null)
-    if (xhr.status === 200) {
-      staticModeDetected = true
-      console.log('[static-mode] Detected static export mode')
-    }
-  } catch {
-    // If synchronous request fails (CORS, etc), fall back to async detection
-    staticModeDetected = null
-  }
-} catch {
-  staticModeDetected = null
+// Check for static mode flag set by SSG at build time
+// This is the preferred detection method - no network requests needed
+if (typeof window !== 'undefined' && (window as any).__OPENSPEC_STATIC_MODE__ === true) {
+  staticModeDetected = true
+  console.log('[static-mode] Detected static export mode (via flag)')
 }
 
 /**
  * Check if running in static export mode
- * Static mode is detected by attempting to load data.json
+ * Static mode is detected by:
+ * 1. window.__OPENSPEC_STATIC_MODE__ flag (set by SSG)
+ * 2. Fallback: attempting to load data.json
  */
 export async function detectStaticMode(): Promise<boolean> {
   if (staticModeDetected !== null) {
     return staticModeDetected
   }
 
+  // Fallback: check for data.json
   try {
     const basePath = getBasePath()
     const dataUrl = `${basePath}data.json`.replace('//', '/')
@@ -55,7 +41,7 @@ export async function detectStaticMode(): Promise<boolean> {
 }
 
 /**
- * Check if running in static export mode (synchronous, may return null if not yet detected)
+ * Check if running in static export mode (synchronous)
  */
 export function isStaticMode(): boolean {
   return staticModeDetected === true
@@ -68,17 +54,52 @@ export function setStaticMode(value: boolean): void {
   staticModeDetected = value
 }
 
+// SSR basePath - set during server-side rendering
+let ssrBasePath: string | null = null
+
+/**
+ * Set base path for SSR (called before rendering)
+ */
+export function setSSRBasePath(basePath: string): void {
+  ssrBasePath = basePath
+}
+
 /**
  * Get the base path for the application
  */
 export function getBasePath(): string {
-  return window.__OPENSPEC_BASE_PATH__ || '/'
+  // SSR mode: use the set basePath
+  if (ssrBasePath !== null) {
+    return ssrBasePath
+  }
+  // Browser mode: use window variable
+  if (typeof window !== 'undefined') {
+    return (window as any).__OPENSPEC_BASE_PATH__ || './'
+  }
+  return './'
+}
+
+/**
+ * Get initial data injected by SSG (if available)
+ */
+export function getInitialData(): ExportSnapshot | null {
+  if (typeof window !== 'undefined' && (window as any).__INITIAL_DATA__) {
+    return (window as any).__INITIAL_DATA__ as ExportSnapshot
+  }
+  return null
 }
 
 /**
  * Load the data snapshot in static mode
  */
 export async function loadStaticSnapshot(): Promise<ExportSnapshot | null> {
+  // First check for injected data (faster, no network request)
+  const initialData = getInitialData()
+  if (initialData) {
+    return initialData
+  }
+
+  // Fallback: fetch from data.json
   const isStatic = await detectStaticMode()
   if (!isStatic) {
     return null

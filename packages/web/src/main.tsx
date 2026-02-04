@@ -1,12 +1,9 @@
-import { createRoot } from 'react-dom/client'
-import { App } from './App'
-import { detectStaticMode, setStaticMode } from './lib/static-mode'
+/**
+ * Main entry point - re-exports from entry-client
+ *
+ * This file exists for backwards compatibility with Vite's default entry.
+ */
+export * from './entry-client'
 
-// Detect static mode before rendering
-detectStaticMode().then((isStatic) => {
-  setStaticMode(isStatic)
-  if (isStatic) {
-    console.log('Running in static export mode')
-  }
-  createRoot(document.getElementById('root')!).render(<App />)
-})
+// Import to trigger side effects (the actual app initialization)
+import './entry-client'

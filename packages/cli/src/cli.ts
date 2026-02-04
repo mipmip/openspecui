@@ -111,7 +111,7 @@ async function main(): Promise<void> {
     )
     .command(
       'export',
-      'Export OpenSpec UI as a static website',
+      'Export OpenSpec UI as a static website (alias for @openspecui/web ssg)',
       (yargs) => {
         return yargs
           .option('output', {
@@ -126,54 +126,47 @@ async function main(): Promise<void> {
             type: 'string',
           })
           .option('base-path', {
-            describe: 'Base path for deployment (e.g., /docs/)',
+            alias: 'b',
+            describe: 'Base path for deployment (e.g., /docs/ or ./)',
             type: 'string',
-            default: '/',
           })
           .option('clean', {
+            alias: 'c',
             describe: 'Clean output directory before export',
             type: 'boolean',
-            default: false,
           })
           .option('open', {
-            describe: 'Open exported site in browser after export',
+            describe: 'Start preview server and open in browser after export',
             type: 'boolean',
-            default: false,
+          })
+          .option('preview-port', {
+            describe: 'Port for the preview server (used with --open)',
+            type: 'number',
+          })
+          .option('preview-host', {
+            describe: 'Host for the preview server (used with --open)',
+            type: 'string',
           })
       },
       async (argv) => {
         const projectDir = resolve(originalCwd, argv.dir || '.')
-        const outputDir = argv.output
-
-        // Normalize base path: ensure it starts and ends with /
-        let basePath = argv['base-path'] || '/'
-        if (basePath !== '/') {
-          // Ensure starts with /
-          if (!basePath.startsWith('/')) {
-            basePath = '/' + basePath
-          }
-          // Ensure ends with /
-          if (!basePath.endsWith('/')) {
-            basePath = basePath + '/'
-          }
-        }
+        const outputDir = resolve(originalCwd, argv.output)
 
         try {
           await exportStaticSite({
             projectDir,
             outputDir,
-            basePath,
+            basePath: argv['base-path'],
             clean: argv.clean,
+            open: argv.open,
+            previewPort: argv['preview-port'],
+            previewHost: argv['preview-host'],
           })
 
-          if (argv.open) {
-            const open = await import('open')
-            const indexPath = resolve(outputDir, 'index.html')
-            await open.default(indexPath)
-            console.log('🌐 Browser opened')
+          // If --open was used, the SSG CLI keeps running, so we don't exit
+          if (!argv.open) {
+            process.exit(0)
           }
-
-          process.exit(0)
         } catch (error) {
           console.error('❌ Export failed:', error)
           process.exit(1)

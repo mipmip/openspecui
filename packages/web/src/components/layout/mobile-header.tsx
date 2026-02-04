@@ -1,3 +1,4 @@
+import { getBasePath } from '@/lib/static-mode'
 import { useDarkMode } from '@/lib/use-dark-mode'
 import { useServerStatus } from '@/lib/use-server-status'
 import { Link } from '@tanstack/react-router'
@@ -14,7 +15,7 @@ export function MobileHeader() {
   const pageTitle = serverStatus.dirName ?? 'OpenSpec'
 
   // Get base path from runtime configuration
-  const basePath = window.__OPENSPEC_BASE_PATH__ || '/'
+  const basePath = getBasePath()
 
   return (
     <>

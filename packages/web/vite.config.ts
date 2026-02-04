@@ -13,7 +13,7 @@ function resolveBackendTarget(): string {
   return `http://localhost:${targetPort}`
 }
 
-export default defineConfig(() => {
+export default defineConfig(({ isSsrBuild }) => {
   const backendTarget = resolveBackendTarget()
   console.log(`[dev-proxy] backend target => ${backendTarget}`)
 
@@ -45,6 +45,14 @@ export default defineConfig(() => {
     test: {
       environment: 'jsdom',
       setupFiles: './src/test/setup.ts',
+    },
+    ssr: {
+      // SSR build: don't externalize these packages - bundle them
+      noExternal: isSsrBuild ? [
+        '@tanstack/react-router',
+        '@tanstack/react-query',
+        'lucide-react',
+      ] : [],
     },
   }
 })

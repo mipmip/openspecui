@@ -12,6 +12,9 @@ import { createTRPCOptionsProxy } from '@trpc/tanstack-react-query'
 import { getTrpcUrl, getWsUrl } from './api-config'
 import { isStaticMode } from './static-mode'
 
+// Check if running in browser
+const isBrowser = typeof window !== 'undefined'
+
 // Query client singleton for SPA
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,7 +30,7 @@ export const WS_RETRY_DELAY_MS = 3000
 // Lazy WebSocket client creation
 let wsClient: ReturnType<typeof createWSClient> | null = null
 function getWsClient() {
-  if (isStaticMode()) {
+  if (!isBrowser || isStaticMode()) {
     return null
   }
   if (!wsClient) {
@@ -62,31 +65,43 @@ export function getWsClientInstance() {
   return wsClient
 }
 
-// tRPC client singleton with WebSocket support for subscriptions
-export const trpcClient = createTRPCClient<AppRouter>({
-  links: [
-    splitLink({
-      // Use WebSocket for subscriptions (only if not in static mode)
-      condition: (op) => op.type === 'subscription' && !isStaticMode(),
-      true: ((runtime) => {
-        const ws = getWsClient()
-        if (ws) {
-          return wsLink({ client: ws })(runtime)
-        }
-        return httpBatchLink({ url: getTrpcUrl() })(runtime)
-      }) as TRPCLink<AppRouter>,
-      // Use HTTP for queries and mutations
-      false: httpBatchLink({
-        url: getTrpcUrl(),
+// Create tRPC client only in browser environment
+function createTrpcClientSafe() {
+  if (!isBrowser) {
+    // Return a dummy client for SSR that throws on use
+    return null as unknown as ReturnType<typeof createTRPCClient<AppRouter>>
+  }
+
+  return createTRPCClient<AppRouter>({
+    links: [
+      splitLink({
+        // Use WebSocket for subscriptions (only if not in static mode)
+        condition: (op) => op.type === 'subscription' && !isStaticMode(),
+        true: ((runtime) => {
+          const ws = getWsClient()
+          if (ws) {
+            return wsLink({ client: ws })(runtime)
+          }
+          return httpBatchLink({ url: getTrpcUrl() })(runtime)
+        }) as TRPCLink<AppRouter>,
+        // Use HTTP for queries and mutations
+        false: httpBatchLink({
+          url: getTrpcUrl(),
+        }),
       }),
-    }),
-  ],
-})
+    ],
+  })
+}
+
+// tRPC client singleton with WebSocket support for subscriptions
+export const trpcClient = createTrpcClientSafe()
 
 // tRPC options proxy for use with React Query hooks
 // Use: trpc.router.procedure.queryOptions() with useQuery()
 // Use: trpcClient.router.procedure.mutate() with useMutation()
-export const trpc = createTRPCOptionsProxy<AppRouter>({
-  client: trpcClient,
-  queryClient,
-})
+export const trpc = isBrowser
+  ? createTRPCOptionsProxy<AppRouter>({
+      client: trpcClient,
+      queryClient,
+    })
+  : (null as unknown as ReturnType<typeof createTRPCOptionsProxy<AppRouter>>)

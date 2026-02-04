@@ -40,14 +40,14 @@ export function DesktopStatusBar() {
   const status = useServerStatus()
 
   return (
-    <div className="desktop-status border-border bg-muted/30 text-muted-foreground flex h-8 items-center justify-between border-t px-4 text-xs">
+    <div className="desktop-status border-border bg-muted/30 text-muted-foreground flex h-8 items-center justify-between gap-4 border-t px-4 text-xs">
       <div className="flex items-center gap-4">
         <StatusIndicator />
         {status.projectDir && (
           <div className="flex items-center gap-1.5">
             <FolderOpen className="h-3.5 w-3.5 shrink-0" />
             <PathMarquee
-              path={status.projectDir}
+              children={status.projectDir}
               maxWidth={300}
               duration={12}
               className="text-xs"

@@ -1,118 +1,46 @@
-import { OpenSpecAdapter } from '@openspecui/core'
-import { existsSync } from 'node:fs'
-import { cp, mkdir, rm, writeFile } from 'node:fs/promises'
-import { dirname, join, resolve } from 'node:path'
+import { OpenSpecAdapter, type ExportSnapshot } from '@openspecui/core'
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
+
+// This version is replaced at build time by tsdown
+declare const __WEB_PACKAGE_VERSION__: string
+const WEB_PACKAGE_VERSION = typeof __WEB_PACKAGE_VERSION__ !== 'undefined' ? __WEB_PACKAGE_VERSION__ : '0.1.0'
 
 export interface ExportOptions {
   /** Project directory containing openspec/ */
   projectDir: string
   /** Output directory for static export */
   outputDir: string
-  /** Base path for deployment (default: /) */
+  /** Base path for deployment */
   basePath?: string
   /** Clean output directory before export */
   clean?: boolean
+  /** Start preview server and open in browser */
+  open?: boolean
+  /** Port for preview server */
+  previewPort?: number
+  /** Host for preview server */
+  previewHost?: string
 }
 
-export interface ExportSnapshot {
-  /** Snapshot metadata */
-  meta: {
-    timestamp: string
-    version: string
-    projectDir: string
-  }
-  /** Dashboard data */
-  dashboard: {
-    specsCount: number
-    changesCount: number
-    archivesCount: number
-  }
-  /** All specs with metadata */
-  specs: Array<{
-    id: string
-    name: string
-    content: string
-    overview: string
-    requirements: Array<{
-      id: string
-      text: string
-      scenarios: Array<{ rawText: string }>
-    }>
-    createdAt: number
-    updatedAt: number
-  }>
-  /** All changes with metadata */
-  changes: Array<{
-    id: string
-    name: string
-    proposal: string
-    tasks?: string
-    design?: string
-    why: string
-    whatChanges: string
-    parsedTasks: Array<{
-      id: string
-      text: string
-      completed: boolean
-      section?: string
-    }>
-    deltas: Array<{
-      capability: string
-      content: string
-    }>
-    progress: { total: number; completed: number }
-    createdAt: number
-    updatedAt: number
-  }>
-  /** All archived changes */
-  archives: Array<{
-    id: string
-    name: string
-    proposal: string
-    tasks?: string
-    design?: string
-    why: string
-    whatChanges: string
-    parsedTasks: Array<{
-      id: string
-      text: string
-      completed: boolean
-      section?: string
-    }>
-    createdAt: number
-    updatedAt: number
-  }>
-  /** Project.md content */
-  projectMd?: string
-  /** AGENTS.md content */
-  agentsMd?: string
-}
+// Re-export ExportSnapshot from core for backwards compatibility
+export type { ExportSnapshot } from '@openspecui/core'
 
 /**
  * Generate a complete data snapshot of the OpenSpec project
+ * (Kept for backwards compatibility and testing)
  */
 export async function generateSnapshot(projectDir: string): Promise<ExportSnapshot> {
   const adapter = new OpenSpecAdapter(projectDir)
-
-  console.log('📊 Generating data snapshot...')
 
   // Check if initialized
   const isInit = await adapter.isInitialized()
   if (!isInit) {
     throw new Error(`OpenSpec not initialized in ${projectDir}`)
-  }
-
-  // Read package version
-  const pkgPath = join(__dirname, '..', 'package.json')
-  let version = '0.0.0'
-  try {
-    const pkgContent = await import(pkgPath, { with: { type: 'json' } })
-    version = pkgContent.default.version || '0.0.0'
-  } catch {
-    // Fallback version
   }
 
   // Get all specs with parsed content
@@ -202,23 +130,21 @@ export async function generateSnapshot(projectDir: string): Promise<ExportSnapsh
   try {
     const projectMdContent = await adapter.readProjectMd()
     projectMd = projectMdContent ?? undefined
-  } catch (error) {
+  } catch {
     // project.md is optional
-    console.log('  ℹ No project.md found')
   }
 
   try {
     const agentsMdContent = await adapter.readAgentsMd()
     agentsMd = agentsMdContent ?? undefined
-  } catch (error) {
+  } catch {
     // AGENTS.md is optional
-    console.log('  ℹ No AGENTS.md found')
   }
 
   const snapshot: ExportSnapshot = {
     meta: {
       timestamp: new Date().toISOString(),
-      version,
+      version: WEB_PACKAGE_VERSION,
       projectDir,
     },
     dashboard: {
@@ -233,189 +159,139 @@ export async function generateSnapshot(projectDir: string): Promise<ExportSnapsh
     agentsMd,
   }
 
-  console.log(`  ✓ ${specs.length} specs`)
-  console.log(`  ✓ ${snapshot.changes.length} changes`)
-  console.log(`  ✓ ${archives.length} archived changes`)
-
   return snapshot
 }
 
 /**
- * Get the path to the web build directory
+ * Detect the package manager being used
  */
-function getWebBuildDir(): string {
-  // In production, web assets are in ./web
-  // In development, we need to build first
-  const prodPath = join(__dirname, '..', 'web')
-  if (existsSync(prodPath)) {
-    return prodPath
-  }
-
-  // Development fallback - check if dist exists in web package
-  const webDistPath = join(__dirname, '..', '..', 'web', 'dist')
-  if (existsSync(webDistPath)) {
-    return webDistPath
-  }
-
-  throw new Error(
-    'Web assets not found. Please run `pnpm build` first to generate the static export.'
-  )
+function detectPackageManager(): 'pnpm' | 'yarn' | 'bun' | 'npm' {
+  const userAgent = process.env.npm_config_user_agent || ''
+  if (userAgent.includes('pnpm')) return 'pnpm'
+  if (userAgent.includes('yarn')) return 'yarn'
+  if (userAgent.includes('bun')) return 'bun'
+  return 'npm'
 }
 
 /**
- * Export the OpenSpec UI as a static website
+ * Get the command to execute a package binary
+ */
+function getExecCommand(pm: 'pnpm' | 'yarn' | 'bun' | 'npm'): { cmd: string; args: string[] } {
+  const packageSpec = WEB_PACKAGE_VERSION.startsWith('__')
+    ? '@openspecui/web' // Development: use latest
+    : `@openspecui/web@${WEB_PACKAGE_VERSION}` // Production: use pinned version
+
+  switch (pm) {
+    case 'pnpm':
+      return { cmd: 'pnpm', args: ['dlx', packageSpec] }
+    case 'yarn':
+      return { cmd: 'yarn', args: ['dlx', packageSpec] }
+    case 'bun':
+      return { cmd: 'bunx', args: [packageSpec] }
+    case 'npm':
+    default:
+      return { cmd: 'npx', args: [packageSpec] }
+  }
+}
+
+/**
+ * Check if running in local monorepo development mode
+ * Returns the path to local SSG CLI if available, null otherwise
+ */
+function findLocalSSGCli(): string | null {
+  // Check for local development (tsx) - packages/cli/src -> packages/web/src/ssg/cli.ts
+  const localSsgTs = join(__dirname, '..', '..', 'web', 'src', 'ssg', 'cli.ts')
+  if (existsSync(localSsgTs)) {
+    return localSsgTs
+  }
+
+  return null
+}
+
+/**
+ * Export the OpenSpec UI as a static website with SSG (pre-rendered HTML)
+ *
+ * This function:
+ * 1. Generates a data snapshot from the openspec/ directory
+ * 2. Writes data.json to the output directory
+ * 3. Delegates to @openspecui/web's SSG CLI for rendering
+ *
+ * In development (monorepo), it uses the local web package.
+ * In production, it uses npx/pnpm dlx to fetch the published package.
  */
 export async function exportStaticSite(options: ExportOptions): Promise<void> {
-  const { projectDir, outputDir, basePath = '/', clean = false } = options
+  const { projectDir, outputDir, basePath, clean, open, previewPort, previewHost } = options
 
-  const resolvedOutputDir = resolve(outputDir)
-  const resolvedProjectDir = resolve(projectDir)
-
-  console.log('\n┌─────────────────────────────────────────────┐')
-  console.log('│       OpenSpec UI Static Export             │')
-  console.log('└─────────────────────────────────────────────┘\n')
-
-  console.log(`📁 Project:  ${resolvedProjectDir}`)
-  console.log(`📦 Output:   ${resolvedOutputDir}`)
-  console.log(`🔗 Base path: ${basePath}\n`)
-
-  const startTime = Date.now()
-
-  try {
-    // Step 1: Clean output directory if requested
-    if (clean && existsSync(resolvedOutputDir)) {
-      console.log('🧹 Cleaning output directory...')
-      await rm(resolvedOutputDir, { recursive: true, force: true })
-    }
-
-    // Step 2: Create output directory
-    await mkdir(resolvedOutputDir, { recursive: true })
-
-    // Step 3: Generate data snapshot
-    const snapshot = await generateSnapshot(resolvedProjectDir)
-
-    // Check snapshot size and warn if too large
-    const snapshotSize = JSON.stringify(snapshot).length
-    const sizeMB = (snapshotSize / 1024 / 1024).toFixed(2)
-    console.log(`📊 Snapshot size: ${sizeMB} MB`)
-    if (snapshotSize > 10 * 1024 * 1024) {
-      console.warn(`⚠️  Warning: Snapshot exceeds 10MB. Consider splitting large projects.`)
-    }
-
-    // Step 4: Write data snapshot
-    console.log('💾 Writing data snapshot...')
-    const snapshotPath = join(resolvedOutputDir, 'data.json')
-    await writeFile(snapshotPath, JSON.stringify(snapshot, null, 2), 'utf-8')
-
-    // Step 5: Copy web build assets
-    console.log('📋 Copying web assets...')
-    const webBuildDir = getWebBuildDir()
-    const files = await import('node:fs/promises').then((fs) => fs.readdir(webBuildDir))
-
-    for (const file of files) {
-      const srcPath = join(webBuildDir, file)
-      const destPath = join(resolvedOutputDir, file)
-      await cp(srcPath, destPath, { recursive: true })
-    }
-
-    // Make copied files writable (needed when copying from Nix store or other read-only sources)
-    const { chmod } = await import('node:fs/promises')
-    const { readdirSync } = await import('node:fs')
-
-    async function makeWritable(dir: string) {
-      const entries = readdirSync(dir, { withFileTypes: true })
-      for (const entry of entries) {
-        const fullPath = join(dir, entry.name)
-        if (entry.isDirectory()) {
-          await makeWritable(fullPath)
-          await chmod(fullPath, 0o755)
-        } else {
-          await chmod(fullPath, 0o644)
-        }
-      }
-    }
-
-    await makeWritable(resolvedOutputDir)
-
-    // Step 6: Patch index.html with base path
-    if (basePath !== '/') {
-      console.log(`🔧 Configuring base path: ${basePath}`)
-      const indexPath = join(resolvedOutputDir, 'index.html')
-      if (existsSync(indexPath)) {
-        const { readFile } = await import('node:fs/promises')
-        let indexHtml = await readFile(indexPath, 'utf-8')
-
-        // Replace the base path in the injected script
-        const beforeBasePath = indexHtml.includes("window.__OPENSPEC_BASE_PATH__ = '/'")
-        indexHtml = indexHtml.replace(
-          "window.__OPENSPEC_BASE_PATH__ = '/'",
-          `window.__OPENSPEC_BASE_PATH__ = '${basePath}'`
-        )
-        const afterBasePath = indexHtml.includes(`window.__OPENSPEC_BASE_PATH__ = '${basePath}'`)
-
-        if (!beforeBasePath) {
-          console.warn(`  ⚠️  Warning: Could not find base path placeholder in index.html`)
-        } else if (!afterBasePath) {
-          console.warn(`  ⚠️  Warning: Base path replacement may have failed`)
-        } else {
-          console.log(`  ✓ Replaced base path variable with: ${basePath}`)
-        }
-
-        // Patch all absolute asset paths to include base path
-        // Match src="/..." and href="/..." attributes (but not protocol URLs like https://)
-        let assetReplacements = 0
-        indexHtml = indexHtml.replace(/\s(src|href)="\/(?!\/)/g, (_match, attr) => {
-          assetReplacements++
-          return ` ${attr}="${basePath}`
-        })
-        console.log(`  ✓ Patched ${assetReplacements} asset path(s)`)
-
-        await writeFile(indexPath, indexHtml, 'utf-8')
-        console.log(`  ✓ Base path configured in index.html`)
-      }
-    }
-
-    // Step 7: Generate fallback routing files
-    console.log('🔀 Generating routing fallback...')
-
-    // Netlify _redirects
-    const redirectsContent = `/*    /index.html   200\n`
-    await writeFile(join(resolvedOutputDir, '_redirects'), redirectsContent, 'utf-8')
-
-    // GitHub Pages 404.html (SPA fallback trick)
-    const indexPath = join(resolvedOutputDir, 'index.html')
-    if (existsSync(indexPath)) {
-      await cp(indexPath, join(resolvedOutputDir, '404.html'))
-    }
-
-    // Step 7: Generate routes manifest
-    console.log('📝 Generating routes manifest...')
-    const routes = {
-      core: ['/', '/specs', '/changes', '/archive', '/project', '/settings'],
-      specs: snapshot.specs.map((s) => ({ id: s.id, name: s.name, path: `/specs/${s.id}` })),
-      changes: snapshot.changes.map((c) => ({ id: c.id, name: c.name, path: `/changes/${c.id}` })),
-      archives: snapshot.archives.map((a) => ({
-        id: a.id,
-        name: a.name,
-        path: `/archive/${a.id}`,
-      })),
-    }
-    await writeFile(
-      join(resolvedOutputDir, 'routes.json'),
-      JSON.stringify(routes, null, 2),
-      'utf-8'
-    )
-
-    const duration = ((Date.now() - startTime) / 1000).toFixed(2)
-    const totalPages =
-      routes.core.length + routes.specs.length + routes.changes.length + routes.archives.length
-
-    console.log('\n✅ Export complete!')
-    console.log(`⏱️  Time: ${duration}s`)
-    console.log(`📄 Pages: ${totalPages}`)
-    console.log(`📦 Output: ${resolvedOutputDir}\n`)
-  } catch (error) {
-    console.error('\n❌ Export failed:', error)
-    throw error
+  // 1. Clean output directory if requested
+  if (clean && existsSync(outputDir)) {
+    rmSync(outputDir, { recursive: true })
   }
+
+  // 2. Create output directory
+  mkdirSync(outputDir, { recursive: true })
+
+  // 3. Generate data snapshot and write to data.json
+  console.log('Generating data snapshot...')
+  const snapshot = await generateSnapshot(projectDir)
+  const dataJsonPath = join(outputDir, 'data.json')
+  writeFileSync(dataJsonPath, JSON.stringify(snapshot, null, 2))
+  console.log(`Data snapshot written to ${dataJsonPath}`)
+
+  // 4. Build SSG arguments - pass data.json path instead of project dir
+  const ssgOnlyArgs = [
+    '--data', dataJsonPath,
+    '--output', outputDir,
+  ]
+
+  if (basePath !== undefined) {
+    ssgOnlyArgs.push('--base-path', basePath)
+  }
+
+  if (open) {
+    ssgOnlyArgs.push('--open')
+    if (previewPort !== undefined) {
+      ssgOnlyArgs.push('--preview-port', String(previewPort))
+    }
+    if (previewHost !== undefined) {
+      ssgOnlyArgs.push('--host', previewHost)
+    }
+  }
+
+  // Check for local development mode first
+  const localCli = findLocalSSGCli()
+
+  let cmd: string
+  let args: string[]
+
+  if (localCli) {
+    // Local development: use tsx to run local CLI
+    cmd = 'npx'
+    args = ['tsx', localCli, ...ssgOnlyArgs]
+  } else {
+    // Production: use package manager to fetch and run from npm
+    const pm = detectPackageManager()
+    const execCmd = getExecCommand(pm)
+    cmd = execCmd.cmd
+    args = [...execCmd.args, ...ssgOnlyArgs]
+  }
+
+  // 5. Run the SSG CLI
+  return new Promise((resolvePromise, reject) => {
+    const child = spawn(cmd, args, {
+      stdio: 'inherit',
+      cwd: projectDir,
+    })
+
+    child.on('close', (code) => {
+      if (code === 0) {
+        resolvePromise()
+      } else {
+        reject(new Error(`SSG export failed with exit code ${code}`))
+      }
+    })
+
+    child.on('error', (err) => {
+      reject(new Error(`Failed to start SSG CLI: ${err.message}`))
+    })
+  })
 }

@@ -3,6 +3,7 @@ import { RouterProvider, createRootRoute, createRoute, createRouter } from '@tan
 import { RootLayout } from './components/layout'
 import './index.css'
 import { ArchiveModalProvider } from './lib/archive-modal-context'
+import { getBasePath } from './lib/static-mode'
 import { queryClient } from './lib/trpc'
 import { ArchiveList } from './routes/archive-list'
 import { ArchiveView } from './routes/archive-view'
@@ -99,7 +100,7 @@ const routeTree = rootRoute.addChildren([
 ])
 
 // Get base path from runtime configuration (injected in index.html)
-const basepath = window.__OPENSPEC_BASE_PATH__ || '/'
+const basepath = getBasePath()
 
 const router = createRouter({
   routeTree,

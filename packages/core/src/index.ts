@@ -105,3 +105,6 @@ export {
   type ToolConfig,
   type ToolDetectionConfig,
 } from './tool-config.js'
+
+// Export types for static site generation
+export { type ExportSnapshot } from './export-types.js'

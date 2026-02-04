@@ -8,8 +8,9 @@
  */
 
 import type { ArchiveMeta, Change, ChangeFile, ChangeMeta, Spec, SpecMeta } from '@openspecui/core'
-import type { ExportSnapshot } from '../../../cli/src/export'
+import type { ExportSnapshot } from '../ssg/types'
 import type { ChangeRaw, DashboardData, OpenSpecUIConfig } from './use-subscription'
+import { getBasePath, getInitialData } from './static-mode'
 
 /**
  * In-memory cache of the loaded snapshot
@@ -26,6 +27,13 @@ export async function loadSnapshot(): Promise<ExportSnapshot | null> {
     return snapshotCache
   }
 
+  // Check for injected initial data first (SSR/SSG)
+  const initialData = getInitialData()
+  if (initialData) {
+    snapshotCache = initialData
+    return initialData
+  }
+
   // Reuse in-flight request if exists
   if (snapshotPromise) {
     return snapshotPromise
@@ -33,7 +41,7 @@ export async function loadSnapshot(): Promise<ExportSnapshot | null> {
 
   snapshotPromise = (async () => {
     try {
-      const basePath = window.__OPENSPEC_BASE_PATH__ || '/'
+      const basePath = getBasePath()
       const dataUrl = `${basePath}data.json`.replace('//', '/')
       const response = await fetch(dataUrl)
 

@@ -5,9 +5,8 @@
   "description": "OpenSpec Web UI - Visual interface for spec-driven development",
   "type": "module",
   "scripts": {
-    "npm": "pnpm build && pnpm pub",
-    "pub": "pnpm publish --access publish --no-git-checks --filter=openspecui",
     "dev": "tsx scripts/dev.ts",
+    "openspecui": "pnpm --filter openspecui dev",
     "dev:server": "pnpm --filter @openspecui/server dev",
     "dev:web": "pnpm --filter @openspecui/web dev",
     "build": "pnpm run build:deps && pnpm run typecheck && pnpm run build:packages && pnpm run build:cli",
@@ -20,6 +19,9 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "release": "pnpm build && changeset publish",
     "example:setup": "tsx scripts/setup-example.ts",
     "example:clean": "tsx scripts/setup-example.ts --clean",
     "example:dev": "pnpm example:setup && pnpm preview --dir ./example"
@@ -37,6 +39,8 @@
     "node": ">=20.19.0"
   },
   "devDependencies": {
+    "@changesets/changelog-github": "^0.5.2",
+    "@changesets/cli": "^2.29.8",
     "@types/node": "^22.10.0",
     "prettier": "^3.4.2",
     "prettier-plugin-organize-imports": "^4.1.0",

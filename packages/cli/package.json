@@ -1,6 +1,6 @@
 {
   "name": "openspecui",
-  "version": "0.7.7",
+  "version": "0.8.0",
   "description": "OpenSpec UI - Visual interface for spec-driven development",
   "type": "module",
   "main": "dist/index.mjs",
@@ -30,7 +30,6 @@
   },
   "devDependencies": {
     "@hono/node-server": "^1.14.1",
-    "@openspecui/ai-provider": "workspace:*",
     "@openspecui/server": "workspace:*",
     "@types/node": "^22.10.2",
     "@types/ws": "^8.5.13",

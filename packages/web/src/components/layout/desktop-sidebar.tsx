@@ -1,3 +1,4 @@
+import { getBasePath } from '@/lib/static-mode'
 import { useDarkMode } from '@/lib/use-dark-mode'
 import { Link } from '@tanstack/react-router'
 import { navItems, settingsItem } from './nav-items'
@@ -7,7 +8,7 @@ export function DesktopSidebar() {
   const isDark = useDarkMode()
 
   // Get base path from runtime configuration
-  const basePath = window.__OPENSPEC_BASE_PATH__ || '/'
+  const basePath = getBasePath()
 
   return (
     <nav className="desktop-sidebar border-border bg-muted/30 flex w-64 shrink-0 flex-col border-r p-4">

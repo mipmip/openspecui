@@ -16,7 +16,6 @@ import {
   sniffGlobalCli,
   type AIToolOption,
 } from '@openspecui/core'
-import type { ProviderManager } from '@openspecui/ai-provider'
 import {
   createReactiveSubscription,
   createReactiveSubscriptionWithInput,
@@ -25,7 +24,6 @@ import { createCliStreamObservable } from './cli-stream-observable.js'
 
 export interface Context {
   adapter: OpenSpecAdapter
-  providerManager: ProviderManager
   configManager: ConfigManager
   cliExecutor: CliExecutor
   watcher?: OpenSpecWatcher
@@ -192,129 +190,6 @@ export const changeRouter = router({
       return createReactiveSubscriptionWithInput((id: string) => ctx.adapter.readChangeRaw(id))(
         input.id
       )
-    }),
-})
-
-/**
- * AI router - AI-assisted operations
- */
-export const aiRouter = router({
-  listProviders: publicProcedure.query(({ ctx }) => {
-    return ctx.providerManager.list()
-  }),
-
-  checkAvailability: publicProcedure.query(async ({ ctx }) => {
-    const results = await ctx.providerManager.checkAvailability()
-    return Object.fromEntries(results)
-  }),
-
-  review: publicProcedure
-    .input(
-      z.object({
-        content: z.string(),
-        type: z.enum(['spec', 'change']),
-        provider: z.string().optional(),
-      })
-    )
-    .mutation(async ({ ctx, input }) => {
-      const provider = input.provider
-        ? ctx.providerManager.get(input.provider)
-        : ctx.providerManager.getDefaultApi()
-
-      if (!provider) {
-        throw new Error('No AI provider available')
-      }
-
-      const response = await provider.complete({
-        messages: [
-          {
-            role: 'system',
-            content: `You are an expert ${input.type === 'spec' ? 'specification' : 'change proposal'} reviewer.
-            Analyze the document and provide line-by-line comments for improvements.
-            Format your response as JSON array: [{"line": number, "type": "suggestion"|"warning"|"error", "comment": "..."}]`,
-          },
-          {
-            role: 'user',
-            content: `Review this ${input.type}:\n\n${input.content}`,
-          },
-        ],
-      })
-
-      try {
-        return JSON.parse(response.content)
-      } catch {
-        return [{ line: 1, type: 'info', comment: response.content }]
-      }
-    }),
-
-  translate: publicProcedure
-    .input(
-      z.object({
-        content: z.string(),
-        targetLang: z.enum(['en', 'zh']),
-        provider: z.string().optional(),
-      })
-    )
-    .mutation(async ({ ctx, input }) => {
-      const provider = input.provider
-        ? ctx.providerManager.get(input.provider)
-        : ctx.providerManager.getDefaultApi()
-
-      if (!provider) {
-        throw new Error('No AI provider available')
-      }
-
-      const langName = input.targetLang === 'en' ? 'English' : 'Chinese'
-
-      const response = await provider.complete({
-        messages: [
-          {
-            role: 'system',
-            content: `You are a professional translator. Translate the following OpenSpec document to ${langName}.
-            Preserve all markdown formatting, headers, and structure. Only translate the text content.`,
-          },
-          {
-            role: 'user',
-            content: input.content,
-          },
-        ],
-      })
-
-      return { translated: response.content }
-    }),
-
-  suggest: publicProcedure
-    .input(
-      z.object({
-        content: z.string(),
-        instruction: z.string(),
-        provider: z.string().optional(),
-      })
-    )
-    .mutation(async ({ ctx, input }) => {
-      const provider = input.provider
-        ? ctx.providerManager.get(input.provider)
-        : ctx.providerManager.getDefaultApi()
-
-      if (!provider) {
-        throw new Error('No AI provider available')
-      }
-
-      const response = await provider.complete({
-        messages: [
-          {
-            role: 'system',
-            content: `You are an OpenSpec document editor. Modify the document according to the user's instruction.
-            Return only the modified document, maintaining proper OpenSpec markdown format.`,
-          },
-          {
-            role: 'user',
-            content: `Instruction: ${input.instruction}\n\nDocument:\n${input.content}`,
-          },
-        ],
-      })
-
-      return { suggested: response.content }
     }),
 })
 
@@ -719,7 +594,6 @@ export const appRouter = router({
   change: changeRouter,
   archive: archiveRouter,
   project: projectRouter,
-  ai: aiRouter,
   init: initRouter,
   realtime: realtimeRouter,
   config: configRouter,

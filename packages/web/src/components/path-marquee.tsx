@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 interface PathMarqueeProps {
   /** The path to display */
-  path: string
+  children: string
   /** Maximum width of the container (default: 300px) */
   maxWidth?: number | string
   /** Animation duration in seconds (default: 10) */
@@ -22,7 +22,7 @@ interface PathMarqueeProps {
  * - Only animates when content overflows
  */
 export function PathMarquee({
-  path,
+  children: path,
   maxWidth = 300,
   duration = 10,
   gap = 20,
@@ -77,7 +77,7 @@ export function PathMarquee({
         <div
           ref={contentRef}
           data-content={path}
-          className={`relative inline-block ${shouldAnimate ? 'animate-marquee group-hover:[animation-play-state:paused]' : ''}`}
+          className={`relative inline-block ${shouldAnimate ? 'animate-marquee group-hover:[animation-play-state:paused]!' : ''}`}
           style={
             shouldAnimate
               ? ({
