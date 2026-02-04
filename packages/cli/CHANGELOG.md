@@ -1,5 +1,11 @@
 # openspecui
 
+## 0.9.5
+
+### Patch Changes
+
+- fix @openspecui/web version
+
 ## 0.9.4
 
 ### Patch Changes

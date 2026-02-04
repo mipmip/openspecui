@@ -241,7 +241,7 @@ function getRunCommand(pm: PackageManager, bin: string): { cmd: string; args: st
  */
 function getExecCommand(pm: PackageManager): { cmd: string; args: string[] } {
   // Use cli package version (web package is published in sync)
-  const webPkgSpec = `@openspecui/web@${pkg.version}`
+  const webPkgSpec = `@openspecui/web@${pkg.devDependencies['@openspecui/web']}`
 
   switch (pm) {
     case 'bun':
